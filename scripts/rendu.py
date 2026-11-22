@@ -94,6 +94,7 @@ def est_suite(l):
     """Renommage, absorption ou unification (PSdF -> SFIO) : pas de limite de rangées."""
     return l["rel"] in SUITES or bool(l.get("unification"))
 NAVY = "#1F2A5C"            # C1 : toutes les Internationales, une seule couleur
+INTERNATIONALES_DANS_ARBRE = False   # 22 novembre 2026 : Internationales dans leur propre vue, plus dans l'arbre
 INTL_RUBAN, INTL_ONGLET, INTL_LIGNE = 14, 14, 22   # voie du haut : ruban, onglet au-dessus, hauteur de ligne
 RX_EUROPEEN = re.compile(r"europ", re.I)
 MED_R = BANDE_H / 2         # rayon du médaillon (sous les barres) ; INTL_RUBAN / 2 + 2 en haut
@@ -1095,6 +1096,11 @@ def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
     preparer(items, inter, ech, T_AUJ)
     bandeaux(items, liens, ech, T_AUJ)
     intl_entrees = voie_internationales(items, inter, ech, T_AUJ, avec_origines=not voies_voulues)
+    if not INTERNATIONALES_DANS_ARBRE:
+        intl_entrees, ech.intl_h = [], 0
+        for o in items.values():
+            o["bandes"], o["bandes_tooltip"] = [], []
+            o["bas"] = BAR_H / 2
     for l in liens:
         l["x_t"] = ech.X(l["t"])
     # Origines historiques (data/manuel/origines.csv) : leurs liens sont toujours dessinés, quelle que
@@ -2673,64 +2679,145 @@ def cle_complete(m, y0, W):
 
 
 def vue_internationales(m):
-    items, ech = m["items"], m["ech"]
-    X = ech.X
-    y, corps, W = 110, [], m["largeur"]
-    for k, c in enumerate(m["cle"]):
-        membres = []
-        for q in c["membres"]:
-            o = items[q]
-            for a in o["affil"]:
-                if a["international_id"] == c["id"]:
-                    connu = a["date_certainty"] == "known" and bool(a["start"])
-                    fin_o = o["t1"] if o["t1"] is not None else m["T_AUJ"]
-                    ta = max(o["t0"], t_de(a["start"])) if connu else o["t0"]
-                    tb = (fin_o if a["end"] in ("", "toujours membre") else min(fin_o, t_de(a["end"]))) if connu else fin_o
-                    membres.append((o, ta, max(tb, ta + 0.5), connu))
-        rangees, place = [], []
-        for o, ta, tb, connu in sorted(membres, key=lambda x: x[1]):
+    """Vue par Internationale (22 novembre 2026) : à gauche, la généalogie des Internationales (succession,
+    scission, réunification, « se réclame de ») ; à droite, sur la frise, la vie de chaque Internationale
+    et, sous elle, ses partis adhérents dessinés sur la période de leur adhésion (couleur de leur famille ;
+    tirets : dates à documenter). Un clic sur un parti ouvre sa place dans la généalogie des partis."""
+    items, inter, ech, T_AUJ = m["items"], m["inter"], m["ech"], m["T_AUJ"]
+    membres_de = defaultdict(list)
+    for o in items.values():
+        for a in o["affil"]:
+            if a["international_id"] in inter:
+                membres_de[a["international_id"]].append((o, a))
+    ids = set(membres_de) | {i for i, d in inter.items() if d.get("origine")}
+    ids = avec_ancetres_inter(ids, inter)
+    enfants, parents = defaultdict(list), defaultdict(list)
+    for p_, d_ in inter.items():
+        for f_, rel in d_["filles"]:
+            if p_ in ids and f_ in ids and f_ != p_:
+                enfants[p_].append((f_, rel))
+                parents[f_].append((p_, rel))
+    debut_de = lambda i: t_de(inter[i]["debut"]) if inter[i]["debut"] else 9999
+    europeens = sorted((i for i in ids if RX_EUROPEEN.search(inter[i]["nom"]) and not parents[i] and not enfants[i]),
+                       key=lambda i: (debut_de(i), inter[i]["nom"]))
+    racines = sorted((i for i in ids if not parents[i] and i not in europeens), key=lambda i: (debut_de(i), inter[i]["nom"]))
+    ordre, vus = [], set()
+
+    def visite(i, prof, rel, parent):
+        if i in vus:
+            return
+        vus.add(i)
+        ordre.append((i, prof, rel, parent))
+        for f_, r_ in sorted(enfants[i], key=lambda x: (debut_de(x[0]), inter[x[0]]["nom"])):
+            visite(f_, prof + 1, r_, i)
+    for r_ in racines:
+        visite(r_, 0, "", None)
+    for i in europeens:
+        visite(i, 0, "", None)
+    GAUCHE, PAS, H_RUBAN, H_MEMBRE, ECART = 470, 18, 14, 15, 3
+    dx = GAUCHE + 30 - ech.X(ech.T0)
+    X = lambda t: ech.X(t) + dx
+    W = X(ech.T1) + 60
+    MOT = {"scission": "scission de", "fusion": "fusion, issue de", "renommage": "succède à", "succession": "succède à",
+           "refondation": "refondation de", "réunification": "réunification de", "se réclame": "se réclame de",
+           "organisation associée": "associée à", "filiation": "issue de", "indirect": "liée à",
+           "filiation (fusion refusée)": "issue de (fusion refusée)"}
+    sigle_de = lambda i: inter[i]["sigle"] if len(re.sub(r" \(\d{4}\)$", "", inter[i]["sigle"] or "")) >= 2 else inter[i]["nom"]
+    y, corps, pos = 112, [], {}
+    titre_euro = False
+    for k, (i, prof, rel, parent) in enumerate(ordre):
+        d = inter[i]
+        if i in europeens and not titre_euro:
+            titre_euro = True
+            y += 14
+            corps.append(texte(16, y + 12, "Partis et groupes européens (sans généalogie documentée entre eux)", 13, True,
+                               "#333333", cls="voie-t"))
+            y += 24
+        # Partis adhérents : barres fines rangées sans chevauchement
+        place, rangees = [], []
+        for o, a in sorted(membres_de.get(i, []), key=lambda x: x[0]["t0"]):
+            connu = a["date_certainty"] == "known" and bool(a["start"])
+            fin_o = o["t1"] if o["t1"] is not None else T_AUJ
+            ta = max(o["t0"], t_de(a["start"])) if connu else max(o["t0"], debut_de(i) if d["debut"] else o["t0"])
+            tb = (fin_o if a["end"] in ("", "toujours membre") else min(fin_o, t_de(a["end"]))) if connu else \
+                (min(fin_o, t_de(d["fin"])) if d["fin"] else fin_o)
+            tb = max(tb, ta + 0.5)
             xa, xb = X(ta), X(tb)
-            w_e = larg(o["etiquette"], FS, True) + 10
-            R = xb + (0 if xb - xa >= w_e else w_e)
-            r = next((r for r, occ in enumerate(rangees) if all(R + GAP <= a or b + GAP <= xa for a, b in occ)), len(rangees))
+            sig = re.sub(r" \(\d{4}\)$", "", o["etiquette"])
+            w_e = larg(sig, FS, True) + 8
+            R = xb + (0 if xb - xa >= w_e else w_e + 2)
+            r = next((r for r, occ in enumerate(rangees) if all(R + GAP <= a_ or b_ + GAP <= xa for a_, b_ in occ)),
+                     len(rangees))
             if r == len(rangees):
                 rangees.append([])
             rangees[r].append((xa, R))
-            place.append((o, xa, xb, w_e, r, connu))
-        h = 50 + max(1, len(rangees)) * 26 + 10
-        corps.append(f'<g class="bande-inter" data-intl="{esc(c["id"])}"><rect x="0" y="{y}" width="{W:.0f}" height="{h}" '
-                     f'fill="{melange(c["couleur"], "#FFFFFF", 0.85 if k % 2 else 0.92)}"/><rect x="0" y="{y}" width="8" '
-                     f'height="{h}" fill="{c["couleur"]}"/>'
-                     + texte(16, y + 18, f"{c['sigle']}, {c['nom']} ({c['dates']})", 13, True, "#111111", cls="voie-t")
-                     + texte(16, y + 34, ("Succession : " + c["succession"]) if c["succession"] else
-                             "Pas de succession documentée", FS, False, "#333333", cls="voie-t"))
-        for o, xa, xb, w_e, r, connu in place:
-            yy = y + 50 + r * 26
-            corps.append(f'<a href="arbre.html#{esc(o["id"])}"><g class="membre" data-id="{esc(o["id"])}"><title>'
-                         f'{esc(o["label"])} : {"dates documentées" if connu else "dates à documenter"}</title>'
-                         f'<rect x="{xa:.2f}" y="{yy:.2f}" width="{xb - xa:.2f}" height="20" rx="3" fill="{o["couleur"]}"'
-                         + ("" if connu else ' stroke="#555555" stroke-dasharray="4 2"') + "/>"
-                         + (texte(xa + 5, yy + 14, o["etiquette"], FS, True, texte_sur(o["couleur"]), cls="tag-t")
-                            if xb - xa >= w_e else
-                            f'<rect x="{xb:.2f}" y="{yy:.2f}" width="{w_e:.2f}" height="20" rx="3" fill="{o["couleur"]}"/>'
-                            + texte(xb + 5, yy + 14, o["etiquette"], FS, True, texte_sur(o["couleur"]), cls="tag-t"))
+            place.append((o, a, xa, xb, w_e, r, connu, sig))
+        h = PAS + 8 + len(rangees) * (H_MEMBRE + ECART) + 10
+        fond = melange(d["couleur"], "#FFFFFF", 0.90 if k % 2 else 0.95)
+        corps.append(f'<g class="bloc-inter" data-intl="{esc(i)}"><rect x="0" y="{y}" width="{W:.0f}" height="{h}" fill="{fond}"/>'
+                     f'<rect x="0" y="{y}" width="6" height="{h}" fill="{d["couleur"]}"/>')
+        # Colonne de gauche : nom, dates, relation à sa mère
+        xi = 16 + prof * 22
+        pos[i] = (xi, y + 14)
+        nom = f"{sigle_de(i)}  {d['nom']}" if sigle_de(i) != d["nom"] else d["nom"]
+        dates = f"{d['debut'] or '?'}–{d['fin'] or ''}"
+        corps.append(texte(xi + 10, y + 18, nom if larg(nom, 13, True) < GAUCHE - xi - 20 else d["sigle"] or nom, 13, True,
+                           "#111111", cls="voie-t"))
+        sous = dates + (f" · {MOT.get(rel, rel)} {sigle_de(parent)}" if parent else "")
+        autres = [p_ for p_, _ in parents[i] if p_ != parent]
+        if autres:
+            sous += " ; aussi " + ", ".join(f"{MOT.get(r_, r_)} {sigle_de(p_)}"
+                                           for p_, r_ in parents[i] if p_ != parent)
+        corps.append(texte(xi + 10, y + 34, sous, FS, False, "#444444", cls="voie-t"))
+        corps.append(texte(xi + 10, y + 50, f"{len(membres_de.get(i, []))} parti(s) adhérent(s) dans la généalogie",
+                           FS, False, "#666666", cls="voie-t") if place else "")
+        # Ruban de l'Internationale sur sa vie
+        if d["debut"]:
+            xr0, xr1 = X(t_de(d["debut"])), X(t_de(d["fin"])) if d["fin"] else X(T_AUJ)
+            corps.append(f'<rect class="ruban-inter" x="{xr0:.2f}" y="{y + 8}" width="{max(xr1 - xr0, 4):.2f}" height="{H_RUBAN}" '
+                         f'rx="7" fill="{d["couleur"]}"><title>{esc(d["nom"])} ({dates})</title></rect>')
+            if larg(d["sigle"], FS, True) + 10 < xr1 - xr0:
+                corps.append(texte(xr0 + 6, y + 19, d["sigle"], FS, True, texte_sur(d["couleur"]), cls="tag-t"))
+            else:
+                corps.append(texte(xr1 + 5, y + 19, d["sigle"], FS, True, "#111111", cls="tag-t"))
+        for o, a, xa, xb, w_e, r, connu, sig in place:
+            yy = y + PAS + 8 + r * (H_MEMBRE + ECART)
+            periode = f"{a['start']}–{a['end']}" if connu else "dates à documenter"
+            src = (lien_source(a.get("source_citation", ""))[0] or "")
+            info = f"{o['label']} : membre {de_nom(d['nom'])}, {periode}" + (f" (source : {src})" if src else "")
+            corps.append(f'<a href="arbre.html#{esc(o["id"])}"><g class="membre" data-id="{esc(o["id"])}"><title>{esc(info)}</title>'
+                         f'<rect x="{xa:.2f}" y="{yy:.2f}" width="{xb - xa:.2f}" height="{H_MEMBRE}" rx="3" fill="{o["couleur"]}"'
+                         + ("" if connu else ' stroke="#444444" stroke-dasharray="4 2" fill-opacity="0.55"') + "/>"
+                         + (texte(xa + 4, yy + 11.5, sig, FS, True, texte_sur(o["couleur"]), cls="tag-t") if xb - xa >= w_e else
+                            texte(xb + 4, yy + 11.5, sig, FS, True, "#222222", cls="tag-t"))
                          + "</g></a>")
         corps.append("</g>")
         y += h
-    axe = [f'<line x1="{X(ech.T0):.1f}" x2="{X(ech.T1):.1f}" y1="88" y2="88" stroke="#555555"/>',
+    # Traits de la généalogie, dans la colonne de gauche : de la mère vers chaque fille
+    traits = []
+    for i, prof, rel, parent in ordre:
+        if parent and parent in pos:
+            (xp, yp), (xf, yf) = pos[parent], pos[i]
+            couleur, tirets = {"scission": ("#C0392B", "5 3"), "se réclame": ("#555555", "2 3"),
+                               "réunification": ("#555555", "2 3")}.get(rel, ("#555555", ""))
+            traits.append(f'<path d="M{xp + 4:.1f} {yp + 6:.1f} V{yf:.1f} H{xf + 6:.1f}" fill="none" stroke="{couleur}" '
+                          f'stroke-width="1.4"' + (f' stroke-dasharray="{tirets}"' if tirets else "") + '/>')
+    axe = [f'<line x1="{X(ech.T0):.1f}" x2="{X(ech.T1):.1f}" y1="92" y2="92" stroke="#555555"/>',
            f'<line x1="{X(ech.T0):.1f}" x2="{X(ech.T1):.1f}" y1="{y + 8}" y2="{y + 8}" stroke="#555555"/>']
     for a in ech.graduations():
-        axe.append(f'<line x1="{X(a):.1f}" x2="{X(a):.1f}" y1="83" y2="93" stroke="#555555"/>'
-                   + texte(X(a), 77, str(a), 12, True, "#333333", "middle", cls="axe-t"))
+        axe.append(f'<line x1="{X(a):.1f}" x2="{X(a):.1f}" y1="87" y2="97" stroke="#555555"/>'
+                   + texte(X(a), 81, str(a), 12, True, "#333333", "middle", cls="axe-t"))
         axe.append(f'<line x1="{X(a):.1f}" x2="{X(a):.1f}" y1="{y + 3}" y2="{y + 13}" stroke="#555555"/>'
                    + texte(X(a), y + 28, str(a), 12, True, "#333333", "middle", cls="axe-t"))
+    legende = ("Trait plein : succession ou fusion ; tirets rouges : scission ; pointillés : réunification ou "
+               "« se réclame de ». Barres : partis adhérents, pendant leur adhésion (tirets : dates à documenter). "
+               "Cliquer sur un parti : sa place dans la généalogie des partis.")
     H = y + 50
     return (f'<svg xmlns="http://www.w3.org/2000/svg" id="vue-inter" width="{W:.0f}" height="{H:.0f}" viewBox="0 0 {W:.0f} {H:.0f}" '
             f'font-family="{POLICE}"><title>Vue par Internationale</title><rect width="{W:.0f}" height="{H:.0f}" fill="#FFFFFF"/>'
-            + texte(16, 32, "Vue par Internationale", 22, True, "#111111", cls="legende-t")
-            + texte(16, 52, "Organisations françaises affichées, regroupées par Internationale, pendant leur adhésion "
-                            "(tirets : dates à documenter). Cliquer : voir l'organisation dans la généalogie.",
-                    FS, False, "#333333", cls="legende-t") + "".join(axe) + "".join(corps) + "</svg>")
+            + texte(16, 32, "Généalogie des Internationales et partis adhérents", 22, True, "#111111", cls="legende-t")
+            + texte(16, 54, legende, FS, False, "#333333", cls="legende-t") + "".join(axe) + "".join(corps)
+            + "".join(traits) + "</svg>")
 
 
 def page_html(m, svg):
@@ -2829,7 +2916,7 @@ HTML = r"""<!doctype html>
   <span id="resultat"></span>
   <button id="ajuster">Ajuster</button><button id="plus" aria-label="Zoom avant">+</button><button id="moins" aria-label="Zoom arrière">−</button>
   <label><input type="checkbox" id="cadres" checked> affiliations</label>
-  <a href="vue_internationales.html">Vue par Internationale</a>
+  <a class="bascule" href="vue_internationales.html">Basculer : vue par Internationale</a>
   <span class="familles" id="familles" aria-label="Replier une famille"></span>
   <span class="liens-site"><a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></span>
 </header>
@@ -3035,7 +3122,7 @@ HTML_VUE = r"""<!doctype html>
   #vue .membre { cursor:pointer; }
   #vue .membre:hover rect { stroke:#000; stroke-width:2; }
 </style></head>
-<body><header><a href="arbre.html">Retour à la généalogie</a> · <a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></header><div id="vue">__SVG__</div><footer>Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a> (licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a>, chaque citation renvoie à son article) et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données : <a href="https://github.com/srcchi/GeneaGauche">dépôt GitHub</a>. <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml">Signaler une erreur</a>.</footer></body></html>
+<body><header><a href="arbre.html">Basculer : généalogie des partis</a> · <a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></header><div id="vue">__SVG__</div><footer>Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a> (licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a>, chaque citation renvoie à son article) et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données : <a href="https://github.com/srcchi/GeneaGauche">dépôt GitHub</a>. <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml">Signaler une erreur</a>.</footer></body></html>
 """
 
 
