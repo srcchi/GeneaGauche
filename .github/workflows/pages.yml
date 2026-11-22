@@ -1,7 +1,8 @@
 # Publication du site sur GitHub Pages : la page d'accueil (site/) et les arbres déjà produits (arbres/).
 # Rien n'est recalculé ici : on publie ce qui a été généré et committé par la chaîne de traitement.
-# Si « deploy-pages » échoue avec « No artifacts named github-pages were found », c'est un incident passager
-# de GitHub : relancer le run (bouton « Re-run jobs » dans l'onglet Actions) ou pousser un nouveau commit.
+# Deux jobs, comme le modèle officiel de GitHub : « construire » envoie l'artefact, « publier » le déploie une
+# fois le premier terminé (dans un seul job, la publication ne trouvait plus l'artefact : « No artifacts named
+# github-pages were found »). En cas d'échec passager : bouton « Re-run jobs » dans l'onglet Actions.
 name: Site GitHub Pages
 
 on:
@@ -17,14 +18,11 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
-  publier:
+  construire:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deploiement.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       - name: Assembler le site
@@ -33,11 +31,18 @@ jobs:
           cp -r site/. _site/
           cp arbres/*.html arbres/*.svg _site/arbres/
           cp arbres/*.pdf _site/arbres/ 2>/dev/null || true
-          touch _site/.nojekyll
           ls -la _site _site/arbres
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
           path: _site
+
+  publier:
+    needs: construire
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
       - id: deploiement
         uses: actions/deploy-pages@v5
