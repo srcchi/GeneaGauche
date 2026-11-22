@@ -70,6 +70,7 @@ VOIE_SANS_GEN = "sans généalogie"
 # et les arbres par famille restent séparés
 VOIE_OUVRIERE = "mouvement ouvrier"
 VOIE_UNIQUE = False        # décision du 22 novembre 2026 : voies séparées (46 liens tracés au lieu de 84 avec la voie commune)
+RANGER_SANS_GEN = True          # point 3 : contre son proche (rangée insérée au besoin)
 SANS_GEN_DANS_FAMILLE = True     # 22 novembre 2026 : près des partis proches (Place publique près du PS)
 FAMILLES[VOIE_OUVRIERE] = ("Socialistes, communistes, trotskystes", "#9C7FA8")
 BLOC = ("socialistes", "communistes", "trotskystes")      # côte à côte (2.1)
@@ -1286,7 +1287,7 @@ def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
       traces = [t for t in traces if (t["a"], t["b"]) not in force or t["majeur"]]
       if voies_voulues or not any(t["croisements"] for t in traces):
           break
-      geo = optimiser(items, voies_ordre, rangees, poly, ech, rang_voie)
+      geo = optimiser(items, voies_ordre, rangees, poly, ech, rang_voie, continuations=continuations)
       boites = boites_obstacles(items)
       traces = [t for t in (router(l, items, boites, rang_voie, poly) for l in poly) if t]
       # Liens mineurs devenus fautifs (croisement, plus de 6 rangées) : renvois, et on recommence
@@ -1594,14 +1595,24 @@ def renvoyer(items, orgs, renvois):
     """Renvois (2.5) : petits textes avant le début de la barre ; plus de 3 : un « voir aussi »."""
     for o in items.values():
         o["renv"] = []
+    base_de = lambda o: re.sub(r" \(\d{4}\)$", "", o["etiquette"])
+    n_base = Counter(base_de(o) for o in items.values())
+
+    def sigle(o):
+        # Sans l'année d'homonymie quand aucune autre barre dessinée n'a ce sigle : « absorbé par PCF (1920) »
+        # se lisait comme une date ; « PT (1991) » et « PT (2015) » la gardent
+        return base_de(o) if n_base[base_de(o)] <= 1 else o["etiquette"]
+
     for r in renvois:
         a, b = items.get(r["a"]), items.get(r["b"])
+        # Absorption : l'événement est au milieu de la barre, loin du renvoi écrit au début : on donne l'année
+        quand = f" en {int(r['t'])}" if r["rel"] == "absorption" and r.get("t") else ""
         if a is not None:
             cible = b or orgs[r["b"]]
-            a["renv"].append((f"{RENVOI_SORTANT.get(r['rel'], '→')} {cible['etiquette']}", r["a"], r["b"]))
+            a["renv"].append((f"{RENVOI_SORTANT.get(r['rel'], '→')} {sigle(cible)}{quand}", r["a"], r["b"]))
         if b is not None:
             src = a or orgs[r["a"]]
-            b["renv"].append((f"{RENVOI_MOT.get(r['rel'], 'issu de')} {src['etiquette']}", r["a"], r["b"]))
+            b["renv"].append((f"{RENVOI_MOT.get(r['rel'], 'issu de')} {sigle(src)}{quand}", r["a"], r["b"]))
     # Continuation (MGR puis PG sur la même rangée) : les renvois du successeur seraient écrits sur la barre
     # du prédécesseur ; ils passent devant le début de la chaîne, préfixés du nom (« PG : membre de LFI »)
     pred_de = {b_: a_ for a_, b_ in _SUITES_RENVOI if a_ in items and b_ in items}
@@ -1771,7 +1782,7 @@ def placer(items, voies_ordre, poly, continuations, collages=(), souhaits=()):
                     while len(local) < candidats[-1] + 1:
                         local.append([])
                     place = min(candidats, key=lambda r: (cout(o, r), abs(r - pref), r < pref))
-                if o.get("sans_gen"):
+                if o.get("sans_gen") and RANGER_SANS_GEN:
                     # Point 3 (22 novembre 2026) : un parti sans ancêtre documenté se range contre son proche (Place
                     # publique contre le PS) : la rangée libre juste dessous ou dessus, sinon une rangée insérée
                     proches = [items[l["a"]] for l in parents[q] if l.get("rel") == "proximité"
@@ -1854,7 +1865,7 @@ def ordonnees(items, voies_ordre, rangees, ech):
                 y_axe_haut=entete_h, y_axe_bas=y - axe_h - 12, intl_voie=intl_voie)
 
 
-def optimiser(items, voies_ordre, rangees, poly, ech, rang_voie, passes=3):
+def optimiser(items, voies_ordre, rangees, poly, ech, rang_voie, passes=3, continuations=()):
     """2.3 : un lien majeur qui croise encore quelque chose essaie de déplacer sa cible, puis sa source,
     vers quelques rangées choisies de sa voie (près de l'autre extrémité, ou en haut ou en bas de la
     voie selon le côté de l'autre voie). Un déplacement n'est gardé que s'il réduit les croisements
@@ -1885,9 +1896,25 @@ def optimiser(items, voies_ordre, rangees, poly, ech, rang_voie, passes=3):
                 autres += n + (1 if t is not None and t["rangs"] > SEUIL_RANGS else 0)
         return (majeurs, autres), croisants, geo
 
-    def tient(q, contenu):
-        o = items[q]
-        return all(o["R"] + GAP <= items[x]["L"] or items[x]["R"] + GAP <= o["L"] for x in contenu if x != q)
+    # Une chaîne de renommages (SFIO puis PS) se déplace d'un bloc : jamais séparée de sa continuation
+    voisins_c = defaultdict(set)
+    for a_, b_ in continuations:
+        voisins_c[a_].add(b_)
+        voisins_c[b_].add(a_)
+
+    def chaine(q, contenu):
+        vus_, pile = {q}, [q]
+        while pile:
+            x = pile.pop()
+            for y in voisins_c[x]:
+                if y not in vus_ and y in contenu:
+                    vus_.add(y)
+                    pile.append(y)
+        return vus_
+
+    def tient(groupe, contenu):
+        return all(items[q]["R"] + GAP <= items[x]["L"] or items[x]["R"] + GAP <= items[q]["L"]
+                   for q in groupe for x in contenu if x not in groupe)
     score, croisants, geo = evaluer()
     for _ in range(passes):
         if not score[0]:
@@ -1903,15 +1930,17 @@ def optimiser(items, voies_ordre, rangees, poly, ech, rang_voie, passes=3):
                     cibles = [ra, ra + 1]
                 else:
                     cibles = [0] if voies_ordre.index(items[autre]["voie"]) < voies_ordre.index(v) else [len(lignes)]
+                groupe = chaine(q, lignes[r0])
                 essais = [("nouvelle", k) for k in cibles] +                          [("dans", r) for k in cibles for r in range(max(0, k - 3), min(len(lignes), k + 4))
-                          if r != r0 and tient(q, lignes[r])]
+                          if r != r0 and tient(groupe, lignes[r])]
                 for sorte, r in essais:
                     sauvegarde = [list(c) for c in lignes]
-                    lignes[r0].remove(q)
+                    for x in groupe:
+                        lignes[r0].remove(x)
                     if sorte == "dans":
-                        lignes[r].append(q)
+                        lignes[r].extend(groupe)
                     else:
-                        lignes.insert(min(r, len(lignes)), [q])
+                        lignes.insert(min(r, len(lignes)), list(groupe))
                     lignes[:] = [c for c in lignes if c]
                     s2, c2, g2 = evaluer()
                     if s2[0] < score[0]:
