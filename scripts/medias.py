@@ -77,8 +77,19 @@ def lire_cache():
 
 
 def sauver(cache):
-    with open(CACHE, "w", encoding="utf-8") as f:
-        json.dump(cache, f, ensure_ascii=False)
+    """Écriture d'un seul coup (fichier temporaire, puis remplacement) : le cache n'est jamais à moitié écrit.
+    Sous Windows, un autre programme (antivirus, indexation) peut tenir le fichier un instant : on réessaie."""
+    tmp = CACHE + ".tmp"
+    for essai in range(8):
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(cache, f, ensure_ascii=False)
+            os.replace(tmp, CACHE)
+            return
+        except OSError:
+            if essai == 7:
+                raise
+            time.sleep(0.5 * (essai + 1))
 
 
 def sparql(requete):

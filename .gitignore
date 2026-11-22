@@ -166,8 +166,7 @@ venv.bak/
 # Rope project settings
 .ropeproject
 
-# mkdocs/Zensical documentation
-/site
+# mkdocs/Zensical documentation : /site non ignoré ici, site/ est la page d'accueil du site GitHub Pages
 
 # mypy
 .mypy_cache/

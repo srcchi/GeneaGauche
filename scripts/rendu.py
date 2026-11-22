@@ -358,7 +358,7 @@ def charger():
         if o.get("noms"):
             o["noms"].sort()
             o["details"].append("noms successifs : " + ", ".join(f"{n} ({int(t)})" for t, n, _, _ in o["noms"])
-                                + f" ; preuve ({o['noms'][0][3]}) : " + " ; ".join(f"« {c} »" for _, _, c, _ in o["noms"]))
+                                + " ; preuve : " + " ; ".join(f"« {c} »" for _, _, c, _ in o["noms"]) + mention_source(o["noms"][0][3]))
     for r in lire("affiliations.csv"):
         if r["party_id"] in orgs and r["international_id"] in inter:
             orgs[r["party_id"]]["affil"].append(r)
@@ -370,7 +370,7 @@ def charger():
                               t=t_de(r["date_evenement"], r["date_evenement_mois"]),
                               preuve=r.get("preuve", ""), citation=r.get("citation", ""),
                               source_cit=r.get("source_citation", ""), inter_nom=r.get("intermediaire_nom", ""),
-                              citation2=r.get("citation2", "")))
+                              citation2=r.get("citation2", ""), source_cit2=r.get("source_citation2", "")))
         elif r["cible"] in orgs and r["relation"] in ("fusion", "renommage", "absorption"):
             composantes[r["cible"]].append(noms_tous.get(r["source"], r["source_nom"]))   # 2.5 : en infobulle
     for q, noms in composantes.items():
@@ -462,9 +462,10 @@ def charger():
     # Infobulles : liens (type, preuve, citation complète) et affiliations (dates)
     for l in liens:
         for q, autre, sens in ((l["a"], l["b"], "vers"), (l["b"], l["a"], "depuis")):
-            txt = (f"{STYLE_LIEN[l['rel']]['nom']} {sens} {orgs[autre]['etiquette']} ({l['preuve']}) : « {l['citation']} »")
+            txt = (f"{STYLE_LIEN[l['rel']]['nom']} {sens} {orgs[autre]['etiquette']} ({l['preuve']}) : « {l['citation']} »"
+                   + mention_source(l.get("source_cit", "")))
             if l["rel"] == "indirect":
-                txt += f" puis « {l['citation2']} » (par {l['inter_nom']})"
+                txt += f" puis « {l['citation2']} »{mention_source(l.get('source_cit2', ''))} (par {l['inter_nom']})"
             orgs[q]["details"].append(txt)
     # Addendum 5, E1-E2 : une barre au crochet ouvert (aucun ancêtre documenté) vit seulement dans la voie
     # « Sans généalogie documentée » ; sa famille se lit à sa couleur (Place publique, Génération écologie,
@@ -484,7 +485,7 @@ def charger():
             d = inter[a["international_id"]]
             dates = f"{a['start']}–{a['end']}" if a["date_certainty"] == "known" else "dates à documenter"
             o["details"].append(f"membre de {d['sigle']} ({d['nom']}) : {dates} ; preuve {a.get('preuve', '')} : "
-                                f"« {a.get('citation', '')} »")
+                                f"« {a.get('citation', '')} »" + mention_source(a.get("source_citation", "")))
             # Lien indirect vers une Internationale, par une organisation associée (Place publique,
             # membre du PSE, organisation associée de l'IS) : dit, jamais dessiné comme une adhésion (R7)
             for p_, f_ in associee_de.get(a["international_id"], []):
@@ -496,6 +497,18 @@ def charger():
 
 
 RX_ORDINAL = re.compile(r"^(?:[IVXLC]+|\d+)(?:e|er|re)$")
+
+
+def mention_source(s):
+    """« [source : Wikipédia fr, Titre] » : la page HTML en fait un lien vers l'article (licence CC BY-SA :
+    chaque citation donne sa source). Wikidata : « [source : Wikidata] »."""
+    s = (s or "").strip()
+    m = re.match(r"(fr|en|es|de|it|pt|ca):(.+)$", s)
+    if m:
+        return f" [source : Wikipédia {m.group(1)}, {m.group(2).strip()}]"
+    if s.startswith("wikidata"):
+        return " [source : Wikidata]"
+    return ""
 
 
 def lisible(t):
@@ -2239,7 +2252,9 @@ def dessiner(m, avec_cle=True, apercu=False):
         vb = m["voie_index"][items[t["b"]]["voie"]]
         va = m["voie_index"][items[t["a"]]["voie"]]
         infob = (f'{st["nom"]} : {items[t["a"]]["label"]} vers {items[t["b"]]["label"]} ; preuve {t["preuve"]} : '
-                 f'« {t["citation"]} »' + (f' puis « {t["citation2"]} » (par {t["inter_nom"]})' if t["rel"] == "indirect" else ""))
+                 f'« {t["citation"]} »' + mention_source(t.get("source_cit", ""))
+                 + (f' puis « {t["citation2"]} »{mention_source(t.get("source_cit2", ""))} (par {t["inter_nom"]})'
+                    if t["rel"] == "indirect" else ""))
         g = [f'<g class="lien" data-a="{esc(t["a"])}" data-b="{esc(t["b"])}" data-rel="{t["rel"]}" '
              f'data-annees="{t["annees"]:.2f}" data-voies="{t["voies"]}" data-rangs="{t["rangs"]}" '
              f'data-majeur="{"oui" if t["majeur"] else ""}" data-suite="{"oui" if est_suite(t) else ""}" '
@@ -2594,6 +2609,10 @@ HTML = r"""<!doctype html>
   #bulle q { display:block; quotes:none; font-style:italic; color:var(--doux); border-left:3px solid var(--bord);
     padding:1px 0 1px 8px; margin:2px 0 4px; word-break:break-word; }
   #bulle .aide { font-size:11px; color:var(--doux); margin-top:6px; }
+  footer { padding:6px 16px; border-top:1px solid var(--bord); background:var(--panneau); font-size:12px; color:var(--doux); }
+  footer a, header .liens-site a { color:var(--accent); }
+  header .liens-site { margin-left:auto; font-size:13px; }
+  #bulle .source { display:block; font-size:11px; color:var(--accent); margin:-2px 0 4px 11px; }
 </style>
 </head>
 <body>
@@ -2605,6 +2624,7 @@ HTML = r"""<!doctype html>
   <label><input type="checkbox" id="cadres" checked> affiliations</label>
   <a href="vue_internationales.html">Vue par Internationale</a>
   <span class="familles" id="familles" aria-label="Replier une famille"></span>
+  <span class="liens-site"><a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/G-n-aGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></span>
 </header>
 <main>
   <div id="bulle" role="tooltip"></div>
@@ -2616,6 +2636,7 @@ HTML = r"""<!doctype html>
     </details>
   </aside>
 </main>
+<footer>Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a> (licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a>, chaque citation renvoie à son article) et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données : <a href="https://github.com/srcchi/G-n-aGauche">dépôt GitHub</a>. <a href="https://github.com/srcchi/G-n-aGauche/issues/new?template=erreur.yml">Signaler une erreur</a>.</footer>
 <script>
 const D = __DONNEES__;
 const svg = document.getElementById('arbre'), vue = document.getElementById('vue');
@@ -2725,9 +2746,16 @@ let epinglee = false;
 function echapper(t){ return t.replace(/[&<>]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
 function formater(txt){
   const lignes = txt.split('\n').filter(l => l.trim());
+  // Citations à part, et « [source : Wikipédia fr, Titre] » en lien vers l'article cité (licence CC BY-SA)
+  const enrichir = h => h.replace(/« ([\s\S]*?) »/g, (m, c) => '<q>« ' + c + ' »</q>')
+    .replace(/\[source : Wikipédia (\w+), ([^\]]+)\]/g, (m, lg, t) =>
+      '<a class="source" target="_blank" rel="noopener" href="https://' + lg + '.wikipedia.org/wiki/' +
+      encodeURIComponent(t.replace(/ /g, '_')).replace(/%2F/g, '/') + '">source : Wikipédia (' + lg + '), ' + t + '</a>')
+    .replace(/\[source : Wikidata\]/g, '<span class="source">source : Wikidata</span>');
   return lignes.map((l, i) => {
-    let h = echapper(l).replace(/« ([\s\S]*?) »/g, (m, c) => '<q>« ' + c + ' »</q>');
-    const k = h.indexOf(' : '); if (i > 0 && k > 0 && k < 90) h = '<span class="etiquette">' + h.slice(0, k) + ' :</span>' + h.slice(k + 2);
+    const brut = echapper(l), k = brut.indexOf(' : ');
+    const h = (i > 0 && k > 0 && k < 90 && !brut.slice(0, k).includes('[') && !brut.slice(0, k).includes('«'))
+      ? '<span class="etiquette">' + brut.slice(0, k) + ' :</span>' + enrichir(brut.slice(k + 2)) : enrichir(brut);
     return i === 0 ? '<div class="titre">' + h + '</div>' : '<div class="ligne">' + h + '</div>';
   }).join('') + '<div class="aide">Clic : épingler · Échap : fermer</div>';
 }
@@ -2768,11 +2796,12 @@ HTML_VUE = r"""<!doctype html>
   body { margin:0; background:var(--fond); color:var(--texte); font-family:Arial, Helvetica, sans-serif; }
   header { padding:8px 16px; border-bottom:1px solid var(--bord); }
   a { color:var(--accent); }
+  footer { padding:6px 16px; border-top:1px solid var(--bord); font-size:12px; }
   #vue { overflow:auto; background:#fff; }
   #vue .membre { cursor:pointer; }
   #vue .membre:hover rect { stroke:#000; stroke-width:2; }
 </style></head>
-<body><header><a href="arbre.html">Retour à la généalogie</a></header><div id="vue">__SVG__</div></body></html>
+<body><header><a href="arbre.html">Retour à la généalogie</a> · <a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/G-n-aGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></header><div id="vue">__SVG__</div><footer>Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a> (licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a>, chaque citation renvoie à son article) et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données : <a href="https://github.com/srcchi/G-n-aGauche">dépôt GitHub</a>. <a href="https://github.com/srcchi/G-n-aGauche/issues/new?template=erreur.yml">Signaler une erreur</a>.</footer></body></html>
 """
 
 

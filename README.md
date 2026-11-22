@@ -10,6 +10,15 @@ Cliquer sur l'image pour l'ouvrir en grand. Version interactive (zoom, recherche
 survol, repli des familles, clé des Internationales) : [`arbres/arbre.html`](arbres/arbre.html), à télécharger
 et ouvrir dans un navigateur. Une version par famille, pour l'impression : [`arbres/`](arbres/).
 
+## Site en ligne
+
+Le site (GitHub Pages) publie la page d'accueil `site/index.html` et les arbres de `arbres/`, tels qu'ils ont été
+produits et committés : `.github/workflows/pages.yml` les assemble et les publie à chaque push qui touche `site/` ou
+`arbres/`. Rien n'est recalculé en ligne : pour mettre le site à jour, relancer la chaîne, committer, pousser.
+Les retours passent par les *issues* GitHub, avec le formulaire `.github/ISSUE_TEMPLATE/erreur.yml`.
+Licence des données : citations de Wikipédia sous CC BY-SA 4.0 (chaque citation renvoie à son article), Wikidata
+sous CC0.
+
 ## Où trouver quoi
 
 | Dossier | Contenu |

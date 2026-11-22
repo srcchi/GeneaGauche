@@ -1,0 +1,41 @@
+# Publication du site sur GitHub Pages : la page d'accueil (site/) et les arbres déjà produits (arbres/).
+# Rien n'est recalculé ici : on publie ce qui a été généré et committé par la chaîne de traitement.
+name: Site GitHub Pages
+
+on:
+  push:
+    branches: [main, Affiche]
+    paths: ["site/**", "arbres/**", ".github/workflows/pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  publier:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploiement.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assembler le site
+        run: |
+          mkdir -p _site/arbres
+          cp -r site/. _site/
+          cp arbres/*.html arbres/*.svg _site/arbres/
+          cp arbres/*.pdf _site/arbres/ 2>/dev/null || true
+          touch _site/.nojekyll
+          ls -la _site _site/arbres
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deploiement
+        uses: actions/deploy-pages@v4
