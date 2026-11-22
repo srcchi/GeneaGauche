@@ -1,5 +1,7 @@
 # Publication du site sur GitHub Pages : la page d'accueil (site/) et les arbres déjà produits (arbres/).
 # Rien n'est recalculé ici : on publie ce qui a été généré et committé par la chaîne de traitement.
+# Si « deploy-pages » échoue avec « No artifacts named github-pages were found », c'est un incident passager
+# de GitHub : relancer le run (bouton « Re-run jobs » dans l'onglet Actions) ou pousser un nouveau commit.
 name: Site GitHub Pages
 
 on:
