@@ -17,6 +17,9 @@ Adresse : **https://srcchi.github.io/GeneaGauche/**
 Le site (GitHub Pages) publie la page d'accueil `site/index.html` et les arbres de `arbres/`, tels qu'ils ont été
 produits et committés : `.github/workflows/pages.yml` les assemble et les publie à chaque push qui touche `site/` ou
 `arbres/`. Rien n'est recalculé en ligne : pour mettre le site à jour, relancer la chaîne, committer, pousser.
+Dans l'arbre interactif, chaque organisation a une fiche rédigée (survol, clic pour l'épingler) : des phrases
+construites seulement à partir des données sourcées (origine, descendance, noms successifs, Internationales, médias),
+chaque phrase renvoyant par un numéro à la citation et à son article ; un nom d'organisation cité mène à sa barre.
 Les retours passent par les *issues* GitHub, avec le formulaire `.github/ISSUE_TEMPLATE/erreur.yml`.
 Licence des données : citations de Wikipédia sous CC BY-SA 4.0 (chaque citation renvoie à son article), Wikidata
 sous CC0.

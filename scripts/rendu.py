@@ -307,8 +307,9 @@ def charger():
             inter[r["parente"]]["filles"].append((r["fille"], r["relation"]))
     # Médias (scripts/medias.py) : organes et journaux sourcés, plus les proximités validées à la main
     # (data/manuel/medias.csv, decision = oui) ; à défaut, les journaux de Wikidata (organisations.csv)
-    medias_de = defaultdict(list)
+    medias_de, medias_lignes = defaultdict(list), defaultdict(list)
     for r in lire("medias.csv") + [x for x in lire_manuel("medias.csv") if x.get("decision", "").strip().lower() == "oui"]:
+        medias_lignes[r["org_id"]].append(r)
         per = f", {r['debut']}–{'' if r.get('fin') in ('', 'toujours') else r['fin']}" if r.get("debut") else ""
         rel = "" if r["relation"] in ("organe", "éditeur", "propriété") else f", {r['relation']}"
         medias_de[r["org_id"]].append(f"{r['media_nom']} ({r['type_media']}{per}{rel})")
@@ -336,7 +337,7 @@ def charger():
         sans_gen = r.get("sans_genealogie") == "oui"
         orgs[r["id"]] = dict(id=r["id"], label=r["label"], etiquette=etiq.get(r["id"], r["nom_court"]),
                              voie=VOIE_SANS_GEN if sans_gen else r["famille"], famille=r["famille"], couleur=couleur,
-                             sans_gen=sans_gen, t0=t0, t1=t1, statut=statut, an0=r["fondation"],
+                             sans_gen=sans_gen, t0=t0, t1=t1, statut=statut, an0=r["fondation"], mois0=r["fondation_mois"],
                              fin_txt=fin_txt, affil=[], majeure=statut.startswith("actif") or vie > VIE_MAJEURE,
                              details=[r["label"], f"fondation : {date_longue(r['fondation'], r['fondation_mois'])}",
                                       fin_detail, f"famille : {r['famille']}",
@@ -493,7 +494,195 @@ def charger():
                                     f"{d['sigle']} {f_}")
     for o in orgs.values():                  # infobulles lisibles (le wikitexte reste dans data/sortie)
         o["details"] = [lisible(x) for x in o["details"]]
+    construire_fiches(orgs, liens, inter, composantes, medias_lignes)
     return orgs, liens, inter, T_AUJ
+
+
+# ======================================================================
+# Fiches rédigées (page HTML) : des phrases construites seulement à partir des données sourcées ;
+# chaque phrase renvoie par un numéro à la citation mot pour mot et à son article.
+# ======================================================================
+
+FAMILLE_ADJ = {"socialistes": "socialiste", "communistes": "communiste", "trotskystes": "trotskyste",
+               "maoïstes": "maoïste", "anarchistes et libertaires": "anarchiste ou libertaire",
+               "écologistes": "écologiste", "radicaux": "radicale"}
+MOIS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
+           "novembre", "décembre"]
+
+
+def lien_source(src):
+    """(texte, url) d'une source « fr:Titre » ou « wikidata:P123 »."""
+    src = (src or "").strip()
+    m = re.match(r"(fr|en|es|de|it|pt|ca):(.+)$", src)
+    if m:
+        t = m.group(2).strip()
+        return f"Wikipédia ({m.group(1)}), {t}", f"https://{m.group(1)}.wikipedia.org/wiki/" + t.replace(" ", "_")
+    if src.startswith("wikidata"):
+        return "Wikidata", "https://www.wikidata.org/"
+    return "", ""
+
+
+MASCULINS = {"parti", "comité", "centre", "courant", "forum", "groupe", "kominform", "bureau", "mouvement",
+             "rassemblement", "secrétariat", "congrès", "front", "réseau"}
+
+
+def de_nom(nom):
+    """« de » avec l'article qui convient : de l'Internationale ouvrière, du Parti de la gauche européenne,
+    de la Rencontre internationale…"""
+    premier = re.split(r"[\s'’-]", nom.strip(), maxsplit=1)[0].lower()
+    if premier in MASCULINS:
+        return "du " + nom
+    if re.match(r"[aeiouyéèêàâîôûhAEIOUYÉÈÊÀÂÎÔÛH]", nom):
+        return "de l'" + nom
+    return "de la " + nom
+
+
+def construire_fiches(orgs, liens, inter, composantes, medias_lignes):
+    def ref(q_):
+        return "{{org:" + q_ + "}}"
+
+    def masculin(q_):
+        return re.split(r"[\s'’-]", orgs[q_]["label"].strip(), maxsplit=1)[0].lower() in MASCULINS
+
+    def de(q_):
+        """« du PSOP », « d'Ensemble », « de LO »."""
+        if masculin(q_):
+            return "du " + ref(q_)
+        sig = orgs[q_]["etiquette"]
+        return ("d'" if re.match(r"[AEIOUYÉÈÊaeiouyéèê]", sig) else "de ") + ref(q_)
+
+    def a_(q_):
+        return ("au " if masculin(q_) else "à ") + ref(q_)
+
+    def an(t):
+        return str(int(t)) if t else ""
+
+    def liste(xs):
+        xs = [x for x in xs if x]
+        if not xs:
+            return ""
+        return xs[0] if len(xs) == 1 else ", ".join(xs[:-1]) + " et " + xs[-1]
+
+    par_cible, par_source = defaultdict(list), defaultdict(list)
+    for l in liens:
+        par_cible[l["b"]].append(l)
+        par_source[l["a"]].append(l)
+    for q, o in orgs.items():
+        sources, phrases = [], []
+
+        def note(citation, source):
+            """Numéro de la citation dans les sources de la fiche (chacune une seule fois)."""
+            # Lien saisi à la main : la source est écrite dans la citation (« fr:Page : « … » »)
+            m = re.fullmatch(r"\s*(\w+:[^:«»]+?)\s*:\s*«\s*(.+?)\s*»\s*", citation or "", re.S)
+            if m:
+                source, citation = m.group(1), m.group(2)
+            if not citation:
+                return ""
+            texte, url = lien_source(source)
+            for i, s_ in enumerate(sources):
+                if (s_["c"], s_["s"]) == (citation, source):
+                    return f"[{i + 1}]"
+            vue = re.sub(r"^\s*\|\s*([^=|]+?)\s*=\s*", r"\1 : ", lisible(citation))   # « | fusion de = » -> « fusion de : »
+            sources.append(dict(c=citation, s=source, citation=vue, texte=texte, url=url))
+            return f"[{len(sources)}]"
+
+        def dire(texte, notes=""):
+            notes = "".join(dict.fromkeys(re.findall(r"\[\d+\]", notes)))     # chaque numéro une fois
+            phrases.append(texte + (" " + notes if notes else "") + ".")
+
+        # Présentation : famille, fondation, fin
+        fam = FAMILLE_ADJ.get(o["famille"], "")
+        fond = f"{MOIS_FR[int(o['mois0']) - 1]} {o['an0']}" if o.get("mois0") else str(o["an0"])
+        fin = ("toujours active" if o["statut"].startswith("actif") else
+               f"disparue en {o['fin_txt']}" if o["fin_txt"] else "")
+        dire(f"Organisation{' ' + fam if fam else ''} fondée en {fond}" + (f", {fin}" if fin else ""))
+        # Origines
+        entrants = par_cible.get(q, [])
+        fusions = [l for l in entrants if l["rel"] == "fusion"]
+        if fusions:
+            an_f = min(int(l["t"]) for l in fusions)
+            suite = [l for l in entrants if l["rel"] == "renommage" and l["t"] and int(l["t"]) == an_f]
+            fusions = suite + fusions
+            entrants = [l for l in entrants if l not in suite]
+            noms = [ref(l["a"]) for l in fusions] + sorted(set(composantes.get(q, [])))
+            dire(f"Née en {an(min(l['t'] for l in fusions))} de la fusion de {liste(noms)}",
+                 "".join(note(l["citation"], l["source_cit"]) for l in fusions))
+        for l in entrants:
+            r_, n_ = l["rel"], note(l["citation"], l["source_cit"])
+            if r_ == "renommage":
+                dire(f"Succède en {an(l['t'])} {a_(l['a'])}", n_)
+            elif r_ == "scission":
+                dire(f"Issue en {an(l['t'])} d'une scission {de(l['a'])}", n_)
+            elif r_ == "refondation":
+                dire(f"Refondation, en {an(l['t'])}, {de(l['a'])}", n_)
+            elif r_ == "absorption":
+                dire(f"Absorbe {ref(l['a'])} en {an(l['t'])}", n_)
+            elif r_ == "filiation_idéologique":
+                dire(f"S'inspire {de(l['a'])}", n_)
+            elif r_ == "passage":
+                dire(f"Reçoit en {an(l['t'])} des militants {de(l['a'])}", n_)
+            elif r_ == "indirect":
+                dire(f"Liée {a_(l['a'])}, par l'intermédiaire {de_nom(l['inter_nom'])} ({an(l['t'])})",
+                     n_ + note(l.get("citation2", ""), l.get("source_cit2", "")))
+        membres = sorted((l for l in entrants if l["rel"] == "composante"), key=lambda l: l["t"] or 0)
+        if membres:
+            dire("Compte parmi ses membres " + liste([f"{ref(l['a'])} ({an(l['t'])})" for l in membres]),
+                 "".join(note(l["citation"], l["source_cit"]) for l in membres))
+        # Descendance
+        sortants = sorted(par_source.get(q, []), key=lambda l: l["t"] or 0)
+        scissions = [l for l in sortants if l["rel"] == "scission"]
+        if scissions:
+            dire("Scissions : " + ", ".join(
+                f"{ref(l['b'])} ({an(l['t'])}) {note(l['citation'], l['source_cit'])}".strip() for l in scissions))
+        for l in sortants:
+            r_ = l["rel"]
+            if r_ == "scission":
+                continue
+            n_ = note(l["citation"], l["source_cit"])
+            if r_ == "renommage":
+                dire(f"Devient {ref(l['b'])} en {an(l['t'])}", n_)
+            elif r_ == "fusion":
+                dire(f"Fusionne en {an(l['t'])} dans {ref(l['b'])}", n_)
+            elif r_ == "absorption":
+                dire(f"Absorbée en {an(l['t'])} par {ref(l['b'])}", n_)
+            elif r_ == "refondation":
+                dire(f"Refondée en {an(l['t'])} sous le nom de {ref(l['b'])}", n_)
+            elif r_ == "filiation_idéologique":
+                dire(f"Inspire {ref(l['b'])}", n_)
+            elif r_ == "passage":
+                dire(f"Des militants rejoignent {ref(l['b'])} en {an(l['t'])}", n_)
+            elif r_ == "indirect":
+                dire(f"Liée {a_(l['b'])}, par l'intermédiaire {de_nom(l['inter_nom'])} ({an(l['t'])})",
+                     n_ + note(l.get("citation2", ""), l.get("source_cit2", "")))
+            elif r_ == "composante":
+                dire(f"Membre {de(l['b'])} depuis {an(l['t'])}", n_)
+        # Noms successifs
+        if o.get("noms") and len(o["noms"]) > 1:
+            dire("Noms successifs : " + ", puis ".join(f"{n} ({int(t)})" for t, n, _, _ in o["noms"]),
+                 "".join(note(c, s_) for _, _, c, s_ in o["noms"]))
+        # Internationales
+        for a in sorted(o["affil"], key=lambda a: a.get("start") or "9999"):
+            d = inter[a["international_id"]]
+            sig = re.sub(r"\s*\(\d{4}\)$", "", d["sigle"] or "")
+            nom = f"{d['nom']} ({sig})" if len(sig) >= 2 and sig != d["nom"] else d["nom"]
+            if a["date_certainty"] == "known" and a.get("start"):
+                fin_a = a.get("end", "")
+                per = f"depuis {a['start']}" if fin_a in ("", "toujours membre") else f"de {a['start']} à {fin_a}"
+            else:
+                per = "(dates à préciser)"
+            dire(f"Membre {de_nom(nom)} {per}", note(a.get("citation", ""), a.get("source_citation", "")))
+        # Médias
+        morceaux = []
+        for r in medias_lignes.get(q, []):
+            per = f", {r['debut']}–{'' if r.get('fin') in ('', 'toujours') else r['fin']}" if r.get("debut") else ""
+            n_ = note(r.get("citation", ""), r.get("source", "")) if r.get("preuve") == "explicite" else ""
+            morceaux.append(f"{r['media_nom']} ({r['type_media']}{per}) {n_}".strip())
+        if morceaux:
+            dire("Médias : " + ", ".join(morceaux))
+        if o.get("sans_gen"):
+            dire("Aucun ancêtre documenté dans les sources : placée dans la colonne « Sans généalogie documentée »")
+        o["fiche"] = dict(titre=o["label"], sigle=o["etiquette"], phrases=phrases,
+                          sources=[{k: s_[k] for k in ("citation", "texte", "url")} for s_ in sources])
 
 
 RX_ORDINAL = re.compile(r"^(?:[IVXLC]+|\d+)(?:e|er|re)$")
@@ -2418,7 +2607,7 @@ def cle_compacte(m):
 def index_sigles(m, y0, W):
     """Index des sigles : chaque sigle affiché sur une barre, avec le nom complet et les dates."""
     # Sans la précision d'homonymie de Wikipédia : « Alternative libertaire (France) », « (France, 1991) »
-    propre = lambda nom: re.sub(r" \((?:[^()]*(?:France|français|française)[^()]*)\)$", "", nom)
+    propre = lambda nom: re.sub(r" \((?:[^()]*\b(?:France|français|française)\b[^()]*)\)$", "", nom)
     entrees = sorted(((o["etiq_aff"], propre(o["label"]), o["dates"]) for o in m["items"].values()
                       if o["etiq_aff"] != o["label"]), key=lambda e: (sans_accents(e[0]).lower(), e[2]))
     n_col = 4
@@ -2548,7 +2737,10 @@ def page_html(m, svg):
                 filles=c["filles"], famille=c["famille"], membres_famille=c["membres_famille"],
                 tags=[m["items"][q]["etiquette"] for q in c["membres"]],
                 tags_famille=[m["items"][q]["etiquette"] for q in c["membres_famille"]]) for c in m["cle"]]
-    donnees = json.dumps(dict(voies=voies, liens=liens, cle=cle), ensure_ascii=False)
+    # Fiches rédigées et noms des organisations (sigle sans l'année d'homonymie, nom complet au survol)
+    fiches = {q: o["fiche"] for q, o in m["items"].items() if o.get("fiche")}
+    noms = {q: dict(s=re.sub(r" \(\d{4}\)$", "", o["etiquette"]), n=o["label"]) for q, o in m["items"].items()}
+    donnees = json.dumps(dict(voies=voies, liens=liens, cle=cle, fiches=fiches, noms=noms), ensure_ascii=False)
     return HTML.replace("__SVG__", svg).replace("__DONNEES__", donnees.replace("</", "<\\/"))
 
 
@@ -2612,6 +2804,16 @@ HTML = r"""<!doctype html>
   footer { padding:6px 16px; border-top:1px solid var(--bord); background:var(--panneau); font-size:12px; color:var(--doux); }
   footer a, header .liens-site a { color:var(--accent); }
   header .liens-site { margin-left:auto; font-size:13px; }
+  #bulle .fiche p { margin:4px 0; }
+  #bulle .fiche .sous { color:var(--doux); font-size:12px; margin-bottom:6px; }
+  #bulle .fiche a.org { color:var(--accent); text-decoration:none; border-bottom:1px dotted var(--accent); cursor:pointer; }
+  #bulle .fiche sup { font-size:10px; }
+  #bulle .fiche sup a { color:var(--doux); text-decoration:none; }
+  #bulle .fiche details { margin-top:8px; border-top:1px solid var(--bord); padding-top:6px; }
+  #bulle .fiche summary { cursor:pointer; color:var(--doux); font-size:12px; }
+  #bulle .fiche ol { padding-left:20px; margin:6px 0 0; font-size:12px; }
+  #bulle .fiche li { margin:0 0 6px; }
+  #bulle .fiche li q { margin:0 0 2px; }
   #bulle .source { display:block; font-size:11px; color:var(--accent); margin:-2px 0 4px 11px; }
 </style>
 </head>
@@ -2766,13 +2968,40 @@ function placer(e){ const m = 14, w = bulle.offsetWidth, h = bulle.offsetHeight;
   bulle.style.left = x + 'px'; bulle.style.top = y + 'px'; }
 svg.querySelectorAll('title').forEach(t => { const p = t.parentNode;
   if (p && p !== svg) { p.dataset.info = t.textContent; t.remove(); } });
+// Fiche rédigée d'une organisation : phrases construites à partir des données sourcées, chaque numéro
+// renvoie à la citation et à son article ; un nom d'organisation cité mène à sa barre
+function fiche(q){
+  const f = D.fiches[q]; if (!f) return null;
+  const org = (m, id) => { const n = D.noms[id];
+    return n ? '<a class="org" data-aller="' + echapper(id) + '" title="' + echapper(n.n) + '">' + echapper(n.s) + '</a>' : echapper(id); };
+  const phrase = p => echapper(p).replace(/\{\{org:([^}]+)\}\}/g, org)
+    .replace(/\[(\d+)\]/g, (m, n) => '<sup><a href="#" data-src="' + n + '">' + n + '</a></sup>');
+  const titre = f.titre + (f.sigle && f.sigle !== f.titre ? ' (' + f.sigle.replace(/ \(\d{4}\)$/, '') + ')' : '');
+  let h = '<div class="fiche"><div class="titre">' + echapper(titre) + '</div>' + f.phrases.map(p => '<p>' + phrase(p) + '</p>').join('');
+  if (f.sources.length) {
+    h += '<details><summary>Sources (' + f.sources.length + ')</summary><ol>' + f.sources.map((s, i) =>
+      '<li id="src-' + (i + 1) + '"><q>« ' + echapper(s.citation) + ' »</q>' + (s.url ? '<a class="source" target="_blank" rel="noopener" href="' +
+      encodeURI(s.url) + '">' + echapper(s.texte) + '</a>' : '') + '</li>').join('') + '</ol></details>';
+  }
+  return h + '<div class="aide">Clic : épingler · Échap : fermer</div></div>';
+}
+function contenu(el){ return (el.classList.contains('org') && fiche(el.dataset.id)) || formater(el.dataset.info); }
+bulle.addEventListener('click', e => {
+  const a = e.target.closest('[data-aller]');
+  if (a) { e.preventDefault(); const q = a.dataset.aller; const g = svg.querySelector(`.org-haut[data-id="${CSS.escape(q)}"]`);
+    if (g) { centrer(g); const s = parcours(q, parents, new Set([q])); parcours(q, enfants, s); surligner(s); }
+    const h = fiche(q); if (h) { bulle.innerHTML = h; } return; }
+  const n = e.target.closest('[data-src]');
+  if (n) { e.preventDefault(); const d = bulle.querySelector('details'); if (d) d.open = true;
+    const li = bulle.querySelector('#src-' + n.dataset.src); if (li) li.scrollIntoView({block:'nearest'}); }
+});
 svg.querySelectorAll('[data-info]').forEach(el => {
   el.addEventListener('mouseenter', e => { if (epinglee) return; e.stopPropagation();
-    bulle.innerHTML = formater(el.dataset.info); bulle.style.display = 'block'; placer(e); });
+    bulle.innerHTML = contenu(el); bulle.style.display = 'block'; placer(e); });
   el.addEventListener('mousemove', e => { if (!epinglee) placer(e); });
   el.addEventListener('mouseleave', () => { if (!epinglee) bulle.style.display = 'none'; });
   el.addEventListener('click', e => { if (e.target.closest('.renvoi')) return;
-    bulle.innerHTML = formater(el.dataset.info); bulle.style.display = 'block'; placer(e);
+    bulle.innerHTML = contenu(el); bulle.style.display = 'block'; placer(e);
     epinglee = true; bulle.classList.add('epinglee'); e.stopPropagation(); });
 });
 function fermer(){ epinglee = false; bulle.classList.remove('epinglee'); bulle.style.display = 'none'; }
