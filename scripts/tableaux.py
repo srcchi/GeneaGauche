@@ -118,7 +118,66 @@ def lignes_francaises(texte):
             yield lien.group(1).strip(), per[0], per[1], citation
 
 
+def internationales_citees():
+    """Cibles des champs « affi internationale » / « affi européenne » des infobox en cache : une Internationale
+    ou un parti européen, même absent des listes de départ (Les Verts mondiaux pour EELV, Alliance radicale
+    européenne pour le PRG, Maintenant le peuple pour LFI). Dates lues sur Wikidata (P571, P576), en cache.
+    Produit data/sortie/internationales_supplementaires.csv, lu par nettoyage.py."""
+    import preuves
+    corpus = preuves.Corpus()
+    rx_champ = re.compile(r"^\s*\|\s*([^=|\n]+?)\s*=(.*)$", re.M)
+    citees = {}
+    for q, textes in corpus.textes.items():
+        for lang, titre, texte in textes:
+            if lang != "fr" or "{{Infobox" not in texte:
+                continue
+            i = texte.find("{{Infobox")
+            j = texte.find("\n}}", i)
+            boite = re.sub(r"<!--.*?-->", "", texte[i:j if j > 0 else i + 8000], flags=re.S)
+            for m in rx_champ.finditer(boite):
+                champ = m.group(1).strip().lower()
+                if not re.search(r"affi internationale|affi européenne|affiliation internationale|affiliation européenne|"
+                                 r"internationale$|parti européen", champ):
+                    continue
+                valeur = re.sub(r"<ref[^>]*/>|<ref[^>]*>.*?</ref>", "", m.group(2), flags=re.S)
+                if re.search(r"solidarit", valeur, re.I):
+                    continue          # « Solidarité avec [[ETA]], [[IRA]]… » : pas une adhésion
+                for l in re.finditer(r"\[\[([^\[\]|]+)(?:\|[^\]]*)?\]\]", valeur):
+                    if "#" in l.group(1):
+                        continue      # lien vers une section ([[Plateformisme#Anarkismo.net]]) : pas une organisation
+                    cible = corpus.resoudre("fr", l.group(1))
+                    if cible and re.fullmatch(r"Q\d+", cible) and cible != q:
+                        citees.setdefault(cible, (l.group(1).strip(), champ, m.group(0).strip(), f"fr:{titre}"))
+            break
+    en.entites(sorted(citees))
+    titres_fr = {c_: en.cache["entites"].get(c_, {}).get("liens", {}).get("fr") for c_ in citees}
+    textes = en.wikitextes("fr", sorted(t for t in titres_fr.values() if t))
+    lignes = []
+    for cible, (titre, champ, citation, source) in sorted(citees.items()):
+        e = en.cache["entites"].get(cible, {})
+        nom = titres_fr.get(cible) or titre
+        # La cible doit se dire internationale dans la première phrase de son article (« alliance politique
+        # européenne », « fédération mondiale ») : une fédération française (Régions et peuples solidaires) non
+        tete = re.search(r"'''.{0,400}?(?:\.\s|\n)", re.sub(r"<ref[^>]*/>|<ref[^>]*>.*?</ref>", "", textes.get(nom) or "",
+                                                          flags=re.S), re.S)
+        if not tete or not re.search(r"europ|internationa|mondia|world|global|transnational", tete.group(0), re.I):
+            continue
+        fond = ""
+        m_f = re.search(r"^\s*\|\s*(?:fondation|création|date de fondation)\s*=(.*)$", textes.get(nom) or "", re.M)
+        if m_f:
+            a_ = re.search(r"\b(1[89]\d\d|20\d\d)\b", m_f.group(1))
+            fond = a_.group(1) if a_ else ""
+        fin = next((m_.group(1) for v in e.get("fin", []) for m_ in [re.match(r"[+-](\d{4})", str(v))] if m_), "")
+        lignes.append([cible, nom, fond, fin, champ, citation, source])
+    with open(os.path.join(SORTIE, "internationales_supplementaires.csv"), "w", encoding="utf-8", newline="") as fh:
+        w = csv.writer(fh)
+        w.writerow(["id", "label", "fondation", "dissolution", "champ", "citation", "source"])
+        w.writerows(lignes)
+    print(f"{len(lignes)} Internationales ou partis européens cités dans les infobox (internationales_supplementaires.csv)")
+
+
 def main():
+    internationales_citees()
     inter = list(csv.DictReader(open(os.path.join(SORTIE, "internationales.csv"), encoding="utf-8")))
     en.entites([r["id"] for r in inter])
     trouves = []

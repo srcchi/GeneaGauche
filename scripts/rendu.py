@@ -764,7 +764,8 @@ def ordre_voies(orgs, liens):
             continue
         if bloc and any(bloc[0] < pos[f] < bloc[-1] for f in DEHORS if f in pos):
             continue
-        cout = sum(w * abs(pos[a] - pos[b]) for (a, b), w in ((tuple(k), w) for k, w in poids.items()))
+        cout = sum(w * abs(pos[a] - pos[b]) for (a, b), w in ((tuple(k), w) for k, w in poids.items())
+                   if a in pos and b in pos)      # la voie « sans généalogie », toujours en bas, ne compte pas
         if cout_min is None or cout < cout_min:
             meilleur, cout_min = list(perm), cout
     return list(meilleur) + en_bas
@@ -1107,8 +1108,8 @@ def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
     # soit leur longueur (exception voulue, ex. AIT -> AIT anti-autoritaire)
     origines = {r["id"] for r in lire_manuel("origines.csv")}
     def majeur(l):
-        if l["rel"] in ("composante", "passage", "indirect"):
-            return False            # liens secondaires (militants, intermédiaire) : jamais forcés
+        if l["rel"] in ("composante", "passage", "indirect", "absorption"):
+            return False            # liens secondaires (militants, intermédiaire, fin dans un parti existant) : jamais forcés
         if items[l["a"]]["majeure"] and items[l["b"]]["majeure"]:
             return True
         # Lien d'une origine : forcé seulement s'il reste sous le seuil d'années (AIT -> AIT 1922, qui
@@ -1253,7 +1254,8 @@ def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
                                     "impossible à dessiner vers la droite (dates trop proches ou cible trop courte)"))
                   a_forcer.add((l["a"], l["b"]))
                   continue
-              trop_loin = t["rangs"] > SEUIL_RANGS and not l["majeur"] and not est_suite(l)
+              # trop long : trop de rangées, ou trop d'années parce qu'il part tôt de sa barre (SFIO -> UGS, 43 ans)
+              trop_loin = (t["rangs"] > SEUIL_RANGS or t["annees"] > SEUIL_ANNEES) and not l["majeur"] and not est_suite(l)
               if (t["croisements"] or trop_loin) and not l["majeur"]:
                   a_forcer.add((l["a"], l["b"]))
               traces.append(t)
@@ -1268,7 +1270,7 @@ def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
       traces = [t for t in (router(l, items, boites, rang_voie, poly) for l in poly) if t]
       # Liens mineurs devenus fautifs (croisement, plus de 6 rangées) : renvois, et on recommence
       fautifs = {(t["a"], t["b"]) for t in traces if (not t["majeur"] or t.get("unification")) and (
-          t["croisements"] or (t["rangs"] > SEUIL_RANGS and not est_suite(t)))}
+          t["croisements"] or ((t["rangs"] > SEUIL_RANGS or t["annees"] > SEUIL_ANNEES) and not est_suite(t)))}
       if not fautifs - force:
           break
       force |= fautifs

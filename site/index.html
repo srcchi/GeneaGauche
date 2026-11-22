@@ -1,11 +1,10 @@
 <!doctype html>
 <html lang="fr">
-<!-- Publication sur srcchi.github.io/GeneaGauche, sans domaine personnalisé (22 novembre 2026) -->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Généalogie de la gauche française</title>
-<meta name="description" content="Arbre des organisations de gauche et d'extrême gauche en France : renommages, scissions, fusions et Internationales, chaque lien sourcé par une citation de Wikipédia.">
+<meta name="description" content="Arbre interactif des organisations de gauche et d'extrême gauche en France : renommages, scissions, fusions, chaque lien sourcé.">
 <style>
   :root { --fond:#f7f5f0; --carte:#ffffff; --texte:#1c1b22; --doux:#55535c; --bord:#dcd8ce; --accent:#b8232f; }
   @media (prefers-color-scheme: dark) {
@@ -13,89 +12,49 @@
   }
   :root[data-theme="dark"] { --fond:#16151a; --carte:#201f26; --texte:#ecebe8; --doux:#b3b0b8; --bord:#38363f; --accent:#f07a83; }
   * { box-sizing:border-box; }
-  body { margin:0; background:var(--fond); color:var(--texte); font-family:Georgia, "Times New Roman", serif; line-height:1.55; }
-  .page { max-width:980px; margin:0 auto; padding:40px 16px 24px; }
-  h1 { font-size:clamp(28px, 5vw, 44px); line-height:1.15; margin:0 0 8px; }
-  .chapo { font-size:clamp(17px, 2.4vw, 20px); color:var(--doux); margin:0 0 28px; max-width:44em; }
-  .entree { display:inline-block; background:var(--accent); color:#fff; text-decoration:none; font-family:Arial, Helvetica, sans-serif;
-    font-weight:bold; padding:12px 20px; border-radius:6px; margin:0 12px 12px 0; }
-  .entree.secondaire { background:transparent; color:var(--accent); border:2px solid var(--accent); }
-  .grille { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:16px; margin:28px 0; }
-  .carte { background:var(--carte); border:1px solid var(--bord); border-radius:8px; padding:16px 18px; }
-  .carte h2 { font-size:18px; margin:0 0 6px; }
-  .carte p { margin:0 0 8px; color:var(--doux); font-size:15px; }
-  .carte a { color:var(--accent); }
-  .familles { font-family:Arial, Helvetica, sans-serif; font-size:14px; padding-left:18px; margin:6px 0 0; }
-  h2.section { font-size:22px; margin:36px 0 8px; }
-  .texte p { max-width:46em; }
-  .avertissement { border-left:4px solid var(--accent); padding:8px 14px; background:var(--carte); margin:24px 0; font-size:15px; }
-  footer { border-top:1px solid var(--bord); margin-top:40px; padding-top:14px; font-size:13px; color:var(--doux);
-    font-family:Arial, Helvetica, sans-serif; }
-  footer a, .texte a, .avertissement a { color:var(--accent); }
+  body { margin:0; min-height:100vh; display:flex; flex-direction:column; background:var(--fond); color:var(--texte);
+    font-family:Georgia, "Times New Roman", serif; line-height:1.6; }
+  .page { flex:1; width:100%; max-width:760px; margin:0 auto; padding:clamp(40px, 9vh, 96px) 16px 32px; }
+  h1 { font-size:clamp(30px, 6vw, 48px); line-height:1.12; margin:0 0 20px; }
+  .description p { font-size:clamp(17px, 2.3vw, 19px); margin:0 0 14px; }
+  .description p.doux { color:var(--doux); font-size:16px; }
+  .boutons { display:flex; flex-wrap:wrap; gap:14px; margin:34px 0 0; }
+  .bouton { flex:1 1 260px; text-align:center; text-decoration:none; font-family:Arial, Helvetica, sans-serif; font-weight:bold;
+    font-size:clamp(18px, 2.6vw, 21px); padding:20px 24px; border-radius:10px; border:2px solid var(--accent); }
+  .bouton.principal { background:var(--accent); color:#fff; }
+  .bouton.principal:hover { filter:brightness(1.08); }
+  .bouton.secondaire { background:transparent; color:var(--accent); }
+  .bouton.secondaire:hover { background:var(--carte); }
+  .bouton small { display:block; font-weight:normal; font-size:14px; margin-top:4px; opacity:.85; }
+  footer { width:100%; max-width:760px; margin:0 auto; padding:14px 16px 24px; border-top:1px solid var(--bord); font-size:13px;
+    color:var(--doux); font-family:Arial, Helvetica, sans-serif; }
+  footer a { color:var(--accent); }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>Généalogie de la gauche française</h1>
-  <p class="chapo">Les organisations de gauche et d'extrême gauche en France, de la Première Internationale à aujourd'hui :
-    renommages, scissions, fusions et appartenance aux Internationales. Chaque lien repose sur une citation de Wikipédia,
-    donnée avec son article.</p>
-
-  <a class="entree" href="arbres/arbre.html">Explorer l'arbre</a>
-  <a class="entree secondaire" href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml">Signaler une erreur</a>
-
-  <div class="avertissement">Version de travail, ouverte aux retours. Une organisation manque, un lien est faux, une date
-    est inexacte ? <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml">Signalez-le</a>, si possible
-    avec l'article ou la source qui le montre.</div>
-
-  <div class="grille">
-    <div class="carte">
-      <h2><a href="arbres/arbre.html">Arbre interactif</a></h2>
-      <p>Zoom, recherche par sigle ou par nom, parenté au survol, familles repliables. Au survol d'une organisation,
-        une fiche donne ses dates, ses liens et les citations qui les justifient.</p>
-    </div>
-    <div class="carte">
-      <h2><a href="arbres/vue_internationales.html">Vue par Internationale</a></h2>
-      <p>Les organisations françaises regroupées sous chaque Internationale, avec leurs périodes d'adhésion.</p>
-    </div>
-    <div class="carte">
-      <h2><a href="arbres/affiche.pdf">Affiche A0</a></h2>
-      <p>L'arbre complet en grand format, pour l'impression (PDF vectoriel).</p>
-    </div>
-    <div class="carte">
-      <h2>Arbres par famille</h2>
-      <p>Une image par famille politique, à télécharger :</p>
-      <ul class="familles">
-        <li><a href="arbres/arbre_socialistes.svg">Socialistes</a></li>
-        <li><a href="arbres/arbre_communistes.svg">Communistes</a></li>
-        <li><a href="arbres/arbre_trotskystes.svg">Trotskystes</a></li>
-        <li><a href="arbres/arbre_maoistes.svg">Maoïstes</a></li>
-        <li><a href="arbres/arbre_anarchistes-et-libertaires.svg">Anarchistes et libertaires</a></li>
-        <li><a href="arbres/arbre_ecologistes.svg">Écologistes</a></li>
-        <li><a href="arbres/arbre_radicaux.svg">Radicaux</a></li>
-        <li><a href="arbres/arbre.svg">Arbre complet (SVG)</a></li>
-      </ul>
-    </div>
+  <div class="description">
+    <p>D'où viennent les partis de gauche et d'extrême gauche d'aujourd'hui ? Cet arbre retrace leurs origines, depuis
+      la Première Internationale : qui est né d'une scission, qui a fusionné avec qui, qui a changé de nom.</p>
+    <p>Chaque organisation est une barre, de sa fondation à sa fin. Survolez-la ou cliquez dessus pour lire sa fiche :
+      son histoire en quelques phrases, ses Internationales, ses journaux, et pour chaque fait la citation de Wikipédia
+      qui le justifie, avec le lien vers l'article. Cherchez un parti par son nom ou son sigle, suivez ses ancêtres et
+      ses descendants.</p>
+    <p class="doux">Version de travail, construite à partir de Wikipédia et de Wikidata. Une organisation manque, un lien
+      est faux, une date est inexacte ? Vos retours sont les bienvenus, si possible avec la source qui le montre.</p>
   </div>
-
-  <h2 class="section">Comment l'arbre est construit</h2>
-  <div class="texte">
-    <p>Les organisations et leurs liens viennent de Wikidata et des articles de Wikipédia en français (et en anglais pour
-      certaines listes de membres). Un lien n'est dessiné que si une phrase ou un champ d'infobox le dit : la citation,
-      mot pour mot, figure dans la fiche de l'organisation avec le lien vers son article.</p>
-    <p>L'arbre principal ne montre que les organisations actives et leurs ancêtres en lignée directe. Les coalitions
-      électorales, les organisations de jeunesse et les sections locales n'y figurent pas. Le temps va de gauche à droite,
-      une barre par organisation, de sa fondation à sa fin.</p>
-    <p>La méthode complète, les règles et les tables de données sont sur le
-      <a href="https://github.com/srcchi/GeneaGauche">dépôt GitHub du projet</a>.</p>
+  <div class="boutons">
+    <a class="bouton principal" href="arbres/arbre.html">Consulter l'arbre interactif</a>
+    <a class="bouton secondaire" href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml">Signaler une erreur
+      <small>formulaire sur GitHub (compte gratuit)</small></a>
   </div>
-
-  <footer>
-    Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a>, sous licence
-    <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a> (chaque citation renvoie à son article),
-    et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données :
-    <a href="https://github.com/srcchi/GeneaGauche">dépôt GitHub</a>.
-  </footer>
 </div>
+<footer>
+  Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a>, sous licence
+  <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a> (chaque citation renvoie à son article),
+  et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données :
+  <a href="https://github.com/srcchi/GeneaGauche">dépôt GitHub</a>.
+</footer>
 </body>
 </html>

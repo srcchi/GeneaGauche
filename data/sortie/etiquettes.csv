@@ -8,7 +8,7 @@ Q55595356,APNA,acronyme du nom,Action populaire nationale d'Alsace,
 Q56310808,ARC (?),acronyme du nom + année (homonyme),Action pour la renaissance de la Corse,
 Q56310810,ARC (1967),article + année (homonyme),Action régionaliste corse,
 Q104186211,ARL,acronyme du nom,Action révolutionnaire LGBTI,
-Q18578174,ASR (1947),acronyme du nom + année (homonyme),Action socialiste et révolutionnaire,
+Q18578174,ASR (1947),acronyme du nom + année (homonyme),Action socialiste et révolutionnaire,oui
 Q2838043,ACR,sigles.csv,Alliance communiste révolutionnaire,oui
 Q18213920,ACA,sigles.csv,Alliance communiste-anarchiste,
 Q111630714,AJR (1992),acronyme du nom + année (homonyme),Alliance des jeunes pour la révolution,
@@ -48,6 +48,7 @@ Q179885,Club des jacobins,nom court,Club des jacobins,
 Q138791715,Collectif Golem,nom court,Collectif Golem,
 Q104290787,CMC,acronyme du nom,Collectif militant communiste,
 Q116459769,CNUC,acronyme du nom,Collectif national unitaire des communistes,oui
+Q64559892,CLC,acronyme du nom,Col·lectiu Combat,
 Q2984612,Colère et espoir,nom court,Colère et espoir,
 Q2984984,CO,sigles.csv,Combat ouvrier,
 Q51297076,CCSR,article,Comité central socialiste révolutionnaire,
@@ -70,6 +71,8 @@ Q5176302,CMDO,article,Conseil pour le maintien des occupations,
 Q2406201,CIR,sigles.csv,Convention des institutions républicaines,oui
 Q2996341,CAP,sigles.csv,Convention pour une alternative progressiste,oui
 Q2996386,C&A,sigles.csv,Convergences et alternative,oui
+Q64569647,CSC,acronyme du nom,Coordinació Socialista de Catalunya,
+Q8350532,CAJEI,acronyme du nom,Coordinadora d'Assemblees de Joves de l'Esquerra Independentista,
 Q116456380,CCCRRLP,acronyme du nom,Coordination communiste pour la continuité révolutionnaire et la renaissance léniniste du PCF,oui
 Q116456366,CCRPCR,acronyme du nom,Coordination communiste pour la reconstruction d'un parti communiste révolutionnaire,oui
 Q2996657,CGA,article,Coordination des groupes anarchistes,oui
@@ -122,7 +125,7 @@ Q3091718,FTSF,sigles.csv,Fédération des travailleurs socialistes de France,oui
 Q116059218,FLUO,acronyme du nom,Fédération libertaire unitaire ouverte,
 Q116459649,FNARC,acronyme du nom,Fédération nationale des associations pour la renaissance communiste,oui
 Q3092073,FNESR,article,Fédération nationale des élus socialistes et républicains,
-Q3092109,FASÉ,acronyme du nom,Fédération pour une alternative sociale et écologique,
+Q3092109,FASÉ,acronyme du nom,Fédération pour une alternative sociale et écologique,oui
 Q3092110,FGA,sigles.csv,Fédération pour une gauche alternative,
 Q126899229,Fédération progressiste,nom court,Fédération progressiste,
 Q3092163,FSC,article,Fédération socialiste calédonienne,
@@ -143,6 +146,7 @@ Q33769773,GGD,acronyme du nom,Groupe Gauche démocratique,
 Q111440554,GAT,article,Groupe activiste trans,
 Q17425770,GAA,acronyme du nom,Groupe anarchiste d'Aimargues,
 Q136907445,GALE,acronyme du nom,Groupe antifasciste Lyon et environs,
+Q32860010,GEG,acronyme du nom,Groupe de l'Extrême-Gauche,
 Q36214467,GFGDS,acronyme du nom,Groupe de la Fédération de la gauche démocrate et socialiste,
 Q3099348,GGR,acronyme du nom,Groupe de la Gauche radicale,
 Q33770699,GRG,acronyme du nom,Groupe des Républicains de gauche,
@@ -171,6 +175,7 @@ Q3178133,JCR (1966),sigles.csv + année (homonyme),Jeunesse communiste révoluti
 Q104297876,JCMLP,acronyme du nom,Jeunesses communistes marxistes-léninistes de Pau,
 Q2219002,JCR (1979),sigles.csv + année (homonyme),Jeunesses communistes révolutionnaires,oui
 Q3178202,JSR,sigles.csv,Jeunesses socialistes révolutionnaires,
+Q11929239,JIR,acronyme du nom,Joves Independentistes Revolucionaris,
 Q104414383,JJR,acronyme du nom,Juives et Juifs révolutionnaires,
 Q127413320,L'Après,nom court,L'Après,oui
 Q135755468,La Convention,nom court,La Convention,
@@ -206,8 +211,9 @@ Q6748471,Lutte occitane,nom court,Lutte occitane,
 Q870667,LO,sigles.csv,Lutte ouvrière,oui
 Q3272709,MGR,acronyme du nom,MARS - Gauche républicaine,oui
 Q6733696,MSP,acronyme du nom,Mahe Socialist Party,
-Q56641256,MLP,article,Maintenant le peuple,
 Q6778654,MLCOOR,acronyme du nom,Marxist–Leninist Communist Organisation of Réunion,
+Q114441157,Maulets (1988),nom court + année (homonyme),Maulets,
+Q940739,Maulets (1999),nom court + année (homonyme),Maulets,
 Q3326471,MFC,article,Mouvement Franche-Comté,
 Q3326535,MCFml,sigles.csv,Mouvement communiste français marxiste-léniniste,oui
 Q125846976,MCL,sigles.csv,Mouvement communiste libertaire,
@@ -230,6 +236,7 @@ Q115922319,MRJ,acronyme du nom,Mouvement révolutionnaire de la jeunesse,
 Q3326836,MSC,article,Mouvement socialiste calédonien,
 Q122614151,MSG,sigles.csv,Mouvement socialiste guadeloupéen,
 Q1156061,MEI,sigles.csv,Mouvement écologiste indépendant,oui
+Q3328091,MFDOTL,acronyme du nom,Movement for Defence of the Land,
 Q115965582,NPA Jeunes,nom court,NPA Jeunes,
 Q115965646,NJA,acronyme du nom,NPA Jeunesses anticapitalistes,
 Q137369019,NUONAM,acronyme du nom,National Union of North African Muslims,
@@ -338,6 +345,7 @@ Q1418625,PNC,article,Partitu di a Nazione Corsa,
 Q58366009,PP (2018),article + année (homonyme),Place publique (parti politique),oui
 Q110394551,PCL,acronyme du nom,Plateforme communiste libertaire,
 Q176339,Plateformisme,nom court,Plateformisme,
+Q18820056,Poble Lliure,nom court,Poble Lliure,
 Q2032009,Possibilisme,nom court,Possibilisme,
 Q137794555,PSL,acronyme du nom,Post-Soviet Left,
 Q3326782,PLR (Réunion),article + lieu (homonyme),Pour La Réunion,
@@ -386,7 +394,7 @@ Q3547154,UDB Jeunes,nom court,UDB Jeunes,
 Q65153446,UA (1920),sigles.csv + année (homonyme),Union anarchiste,oui
 Q3550048,UC,article,Union calédonienne,
 Q64524428,UCL,sigles.csv,Union communiste libertaire (francophone),oui
-Q2722985,UGS,sigles.csv,Union de la gauche socialiste,
+Q2722985,UGS,sigles.csv,Union de la gauche socialiste,oui
 Q3550094,UA (1979),article + année (homonyme),Union des anarchistes,
 Q3550095,UAS,article,Union des anarcho-syndicalistes,oui
 Q106920710,UDE,article,Union des centristes et des écologistes,
@@ -416,6 +424,7 @@ Q3088622,URB,article,Union régionaliste bretonne,
 Q3550479,USR,article,Union socialiste républicaine,
 Q3550671,UCDR,acronyme du nom,Unir et Construire dans le Renouveau,
 Q111600632,Unité communiste,nom court,Unité communiste,
+Q60847228,VPÉ,acronyme du nom,"Verts, Parti écologiste",oui
 Q3561478,VLR,article,Vive la révolution,
 Q3561492,VLC,article,Vive le communisme,
 Q3562502,VdT,sigles.csv,Voix des travailleurs,oui

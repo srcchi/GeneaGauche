@@ -104,6 +104,7 @@ def verifier_svg(chemin, cpt, err):
     types = {r["id"]: r["type"].strip() for r in lire("types.csv", MANUEL)}
     liens_csv = lire("liens.csv")
     successeur = {r["source"] for r in liens_csv if r["relation"] in REL_SUCC_DIRECTE}
+    rel_de = {(r["source"], r["cible"]): r["relation"] for r in liens_csv}
 
     # ---------- Barres : R2, R3, R5, R6 ----------
     barres, ouvertes, majeures = {}, {}, set()
@@ -330,6 +331,8 @@ def verifier_svg(chemin, cpt, err):
             if not (-1 <= b2[0] - (b1[0] + b1[2]) <= 10):
                 faute("R4 textes", f"renvois de {q} pas contigus")
         for b_, txt, a, b in rs:
+            if rel_de.get((a, b)) in ("passage", "indirect", "absorption"):
+                continue          # jamais forcés par le rendu : leur renvoi est normal
             if a and b and a in majeures and b in majeures and not vue_famille                     and not re.sub(r"^[^:]+ : (?=membre de|composante)", "", txt).startswith(("membre de", "composante")):
                 # composante : pas une lignée (préfixe « PG : » d'un successeur en continuation accepté)
                 faute("liens majeurs en renvoi", f"{a} -> {b} « {txt} »")

@@ -617,6 +617,27 @@ def main():
             d["fondation_approchee"] = True       # « vers 2001 » : dessinée quand même, signalée comme telle
         stats["noeuds_manuels"] += 1
 
+    # Internationales et partis européens cités dans un champ d'affiliation d'une infobox (tableaux.py) :
+    # créés s'ils manquaient, reclassés en Internationale s'ils étaient pris pour des organisations
+    stats["internationales_citees"] = 0
+    for r in lire(os.path.join("sortie", "internationales_supplementaires.csv")):
+        q = r.get("id", "").strip()
+        if not q:
+            continue
+        d = noeuds.get(q)
+        if d is None:
+            d = noeuds[q] = nouveau(q, r.get("label", "").strip() or q)
+            d.setdefault("cats_article", [])
+            d.setdefault("pays", []), d.setdefault("pos_wd", []), d.setdefault("types", [])
+            d.setdefault("journaux", [])
+            if annee(r.get("fondation")):
+                d["dates_f"].append((annee(r["fondation"]), "wikipedia"))
+            if annee(r.get("dissolution")):
+                d["dates_d"].append((annee(r["dissolution"]), "wikidata"))
+        d["sources"].add("champ d'affiliation")
+        d["internationale_forcee"] = f"{r.get('source', '')} : « {r.get('citation', '')} »"
+        stats["internationales_citees"] += 1
+
     # Dates retenues : la première source (correction > Wikidata > Wikipédia), les autres notées
     for q, d in noeuds.items():
         for cle, liste, champs in (("fondation", d["dates_f"], ("fondation", "création",
@@ -629,7 +650,8 @@ def main():
 
     # ================= 6. Trois ensembles =================
     def est_internationale(d):
-        return bool(set(d["types"]) & TYPES_INTERNATIONALE or RX_INTER.search(d["label"]))
+        return bool(d.get("internationale_forcee") or set(d["types"]) & TYPES_INTERNATIONALE
+                    or RX_INTER.search(d["label"]))
 
     def de_gauche(d):
         ideo_nom = " ".join(x for x, _ in d["ideologies"]) + " " + d["label"]
@@ -686,6 +708,8 @@ def main():
             classe[q], raison[q] = "exclu", "exclu à la main"
         elif f in ("inclure", "vivant", "disparu") or RX_DOUTEUX.search(d["label"]):
             classe[q] = "graphe"    # les radicaux : gardés et signalés, pas tranchés ici
+        elif d.get("internationale_forcee"):
+            classe[q] = "internationale"   # cible d'un champ d'affiliation d'infobox (tableaux.py)
         elif q in rejets_porte:
             classe[q], raison[q] = "exclu", rejets_porte[q]
         elif q in centre_hors:
@@ -803,6 +827,55 @@ def main():
                 d_g[cle], d_g[cle + "_source"] = d_x[cle], d_x.get(cle + "_source", "")
         noeuds[x_] = None
         stats["doublons_fusionnes"] += 1
+    # Relecture des infobox (22 novembre 2026) : infobox.py ne lit que les articles trouvés par les catégories ;
+    # une organisation venue de Wikidata, ou ajoutée à la main, n'avait jamais ses champs de lignée ni ses
+    # affiliations lus (Les Verts, EELV, Génération écologie, MEI... ; Ensemble -> QI-SU perdu). On relit ici
+    # l'infobox en cache de chaque organisation connue ; un lien déjà présent n'est jamais remplacé, la
+    # citation est retrouvée ensuite comme pour les autres (R8). Les commentaires HTML sont ignorés.
+    stats["liens_infobox_relus"] = 0
+    rx_champ = re.compile(r"^\s*\|\s*([^=|\n]+?)\s*=(.*)$", re.M)
+    # Un même texte attribué à plusieurs organisations (titre qui redirige : la Tendance CLAIRE reçoit l'article
+    # du NPA) n'est relu que pour celle dont le nom est celui de l'infobox ; pour les autres, jamais.
+    partages = Counter(hash(wikitext.get(q, "")) for q, d in noeuds.items() if d and wikitext.get(q))
+    for q, d in list(noeuds.items()):
+        if not d:
+            continue
+        texte = wikitext.get(q, "")
+        i_ = texte.find("{{Infobox")
+        if i_ < 0:
+            continue
+        if partages[hash(texte)] > 1:
+            m_nom = re.search(r"^\s*\|\s*nom\s*=(.*)$", texte, re.M)
+            if not m_nom or normaliser(re.sub(r"\[\[|\]\]|'''?", "", m_nom.group(1)).strip()) != normaliser(d["label"]):
+                stats["textes_partages_ignores"] = stats.get("textes_partages_ignores", 0) + 1
+                continue
+        j_ = texte.find("\n}}", i_)
+        boite = re.sub(r"<!--.*?-->", "", texte[i_:j_ if j_ > 0 else i_ + 8000], flags=re.S)
+        for m in rx_champ.finditer(boite):
+            champ, valeur = m.group(1).strip().lower(), re.sub(r"<ref[^>]*/>|<ref[^>]*>.*?</ref>", "", m.group(2), flags=re.S)
+            if re.search(r"\b(?:nationale|française|francaise|locale|régionale)\b", champ):   # pas « internationale »
+                continue                       # coalitions et alliances nationales : pas des Internationales (R6)
+            if re.search(preuves.CHAMPS_AFFIL, champ):
+                sens, typ = "vers", "appartenance"
+            elif re.search(preuves.CHAMPS_LIGNEE["scission_de"], champ):
+                sens, typ = "depuis", "scission"
+            elif re.search(preuves.CHAMPS_LIGNEE["scission_vers"], champ):
+                sens, typ = "vers", "scission"
+            elif re.search(preuves.CHAMPS_LIGNEE["pred"], champ):
+                sens, typ = "depuis", "filiation"
+            elif re.search(preuves.CHAMPS_LIGNEE["succ"], champ):
+                sens, typ = "vers", "filiation"
+            else:
+                continue
+            for l_ in preuves.RX_LIEN.finditer(valeur):
+                cible = corpus.resoudre("fr", l_.group(1))
+                if not cible or cible == q or not noeuds.get(cible):
+                    continue
+                a_, b_ = (q, cible) if sens == "vers" else (cible, q)
+                if (a_, b_) in aretes or (b_, a_) in aretes:
+                    continue
+                aretes[(a_, b_)] = dict(type=typ, sources={"infobox relue"}, relations={f"wikipedia:{champ}"})
+                stats["liens_infobox_relus"] += 1
     # Extrémités inconnues (ne devrait pas arriver)
     for k in [k for k in aretes if not noeuds.get(k[0]) or not noeuds.get(k[1])]:
         stats["aretes_extremite_inconnue"] += 1
@@ -1117,6 +1190,11 @@ def main():
         if (champ_t == "scission" and rel != "scission") or (champ_t == "fusion" and rel not in ("fusion", "renommage")):
             contradictions.append((a, b, t, e, rel, champ_t))
             continue
+        if rel == "fusion" and fin_a and noeuds[b]["fondation"] and fin_a > noeuds[b]["fondation"] + 1:
+            # Fusion dans une organisation qui existait déjà (PSU « fusionné dans » Les Verts, en 1990) :
+            # c'est une absorption, à la fin de la source, et non à la fondation de la cible (1984)
+            rel = "absorption"
+            e["date_absorption"] = fin_a
         liens.append((a, b, rel, e))
     # Un seul renommage (continuation) par successeur : la source qui a vécu le plus longtemps ;
     # les autres deviennent des fusions secondaires (ex. SFIO -> PS 1969, avec UCRG, UGCS, CIR).
