@@ -1771,6 +1771,27 @@ def placer(items, voies_ordre, poly, continuations, collages=(), souhaits=()):
                     while len(local) < candidats[-1] + 1:
                         local.append([])
                     place = min(candidats, key=lambda r: (cout(o, r), abs(r - pref), r < pref))
+                if o.get("sans_gen"):
+                    # Point 3 (22 novembre 2026) : un parti sans ancêtre documenté se range contre son proche (Place
+                    # publique contre le PS) : la rangée libre juste dessous ou dessus, sinon une rangée insérée
+                    proches = [items[l["a"]] for l in parents[q] if l.get("rel") == "proximité"
+                               and items[l["a"]].get("bloc_v") == (v, debut) and "rang_l" in items[l["a"]]]
+                    aff = items.get(o.get("affinite") or "", {})
+                    if aff.get("bloc_v") == (v, debut) and "rang_l" in aff:
+                        proches.append(aff)
+                    if proches:
+                        r0 = min(proches, key=lambda x: x["t0"])["rang_l"]
+                        if place not in (r0 - 1, r0 + 1):
+                            voisine = next((r for r in (r0 + 1, r0 - 1) if 0 <= r < len(local) and libre(r, o["L"], o["R"])), None)
+                            if voisine is not None:
+                                place = voisine
+                            else:
+                                place = r0 + 1
+                                local.insert(place, [])
+                                for x in bloc:
+                                    if x != q and items[x].get("bloc_v") == (v, debut) and items[x].get("rang_l", -1) >= place:
+                                        items[x]["rang_l"] += 1
+                                segments[:] = [(sx, h + (h >= place), b + (b >= place)) for sx, h, b in segments]
                 if place == len(local):
                     local.append([])
                 L_eff = o["x0"] - 1 if p and place == items.get(p, {}).get("rang_l") else o["L"]
