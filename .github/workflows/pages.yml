@@ -4,7 +4,7 @@ name: Site GitHub Pages
 
 on:
   push:
-    branches: [main, Affiche]
+    branches: [main]          # GitHub Pages ne publie que depuis main (règle de l'environnement github-pages)
     paths: ["site/**", "arbres/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
