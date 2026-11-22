@@ -65,9 +65,16 @@ FAMILLES = {
     "sans généalogie": ("Sans généalogie documentée", "#8C8C8C"),
 }
 VOIE_SANS_GEN = "sans généalogie"
+# 22 novembre 2026 : une seule voie pour les trois familles du mouvement ouvrier dans l'arbre général (la Ligue
+# communiste, courant interne de la SFIO, se range près d'elle) ; chaque barre garde la couleur de sa famille,
+# et les arbres par famille restent séparés
+VOIE_OUVRIERE = "mouvement ouvrier"
+VOIE_UNIQUE = False        # décision du 22 novembre 2026 : voies séparées (46 liens tracés au lieu de 84 avec la voie commune)
+SANS_GEN_DANS_FAMILLE = True     # 22 novembre 2026 : près des partis proches (Place publique près du PS)
+FAMILLES[VOIE_OUVRIERE] = ("Socialistes, communistes, trotskystes", "#9C7FA8")
 BLOC = ("socialistes", "communistes", "trotskystes")      # côte à côte (2.1)
 DEHORS = ("écologistes", "anarchistes et libertaires")     # hors de ce bloc
-TEINTE = {k: c for k, (_, c) in FAMILLES.items()}
+TEINTE = {k: c for k, (_, c) in FAMILLES.items()}   # (les voies, y compris la voie commune)
 TITRES = {k: t for k, (t, _) in FAMILLES.items()}
 NUANCES = {"communiste libertaire": 0.30, "anarcho-syndicaliste": 0.45,
            "luxemburgiste / conseilliste": 0.35, "écosocialiste": -0.30}
@@ -337,7 +344,7 @@ def charger():
         vie = ((t1 if t1 is not None else T_AUJ) - t0)
         sans_gen = r.get("sans_genealogie") == "oui"
         orgs[r["id"]] = dict(id=r["id"], label=r["label"], etiquette=etiq.get(r["id"], r["nom_court"]),
-                             voie=VOIE_SANS_GEN if sans_gen else r["famille"], famille=r["famille"], couleur=couleur,
+                             voie=r["famille"], famille=r["famille"], couleur=couleur,
                              sans_gen=sans_gen, t0=t0, t1=t1, statut=statut, an0=r["fondation"], mois0=r["fondation_mois"],
                              approx=r.get("fondation_approchee") == "oui",
                              fin_txt=fin_txt, affil=[], majeure=statut.startswith("actif") or vie > VIE_MAJEURE,
@@ -475,7 +482,7 @@ def charger():
     # MEI, Parti pirate). La règle du 16 novembre (voie de la famille, près du parti qui partage une
     # affiliation) est abandonnée.
     for o in orgs.values():
-        if o.get("sans_gen"):
+        if o.get("sans_gen") and not SANS_GEN_DANS_FAMILLE:
             o["voie"] = VOIE_SANS_GEN
             o["details"].append(f"famille {o['famille']} (couleur), aucun ancêtre documenté")
     associee_de = defaultdict(list)       # Internationale -> [(parente, « organisation associée de … »)]
@@ -684,7 +691,7 @@ def construire_fiches(orgs, liens, inter, composantes, medias_lignes):
         if morceaux:
             dire("Médias : " + ", ".join(morceaux))
         if o.get("sans_gen"):
-            dire("Aucun ancêtre documenté dans les sources : placée dans la colonne « Sans généalogie documentée »")
+            dire("Aucun ancêtre documenté dans les sources (crochet ouvert au début de la barre)")
         o["fiche"] = dict(titre=o["label"], sigle=o["etiquette"], phrases=phrases,
                           sources=[{k: s_[k] for k in ("citation", "texte", "url")} for s_ in sources])
 
@@ -1089,9 +1096,23 @@ def voie_internationales(items, inter, ech, T_AUJ, avec_origines=True):
 
 
 def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
+    if VOIE_UNIQUE and not voies_voulues:
+        orgs = {q: (dict(o, voie=VOIE_OUVRIERE) if o["voie"] in BLOC else o) for q, o in orgs.items()}
     ordre_complet = ordre_voies(orgs, liens)
     voies_ordre = [v for v in ordre_complet if not voies_voulues or v in voies_voulues]
     items = {q: dict(o, details=list(o["details"])) for q, o in orgs.items() if o["voie"] in voies_ordre}
+    # Proximités (data/manuel/proximites.csv, scripts/proximites.py) : courants internes, entrisme, adhésions,
+    # alliances. Elles rapprochent les barres au placement, sans rien affirmer ; les formulations négatives
+    # (« exclut toute alliance », refus, rupture) et les lignes « non » sont ignorées.
+    rx_neg = re.compile(r"exclu\w* (?:toute|tout)|refus|rejet|rompt|rupture|critique|s'oppos|hostil", re.I)
+    proximites = []
+    for r in lire_manuel("proximites.csv"):
+        a_, b_ = r.get("org_id", ""), r.get("proche_id", "")
+        if (a_ in items and b_ in items and r.get("decision", "").strip().lower() != "non"
+                and r.get("nature") in ("courant interne", "entrisme", "adhésion", "alliance")
+                and not (r.get("nature") == "alliance" and rx_neg.search(r.get("citation", "")))):
+            a_, b_ = sorted((a_, b_), key=lambda q: items[q]["t0"])        # du plus ancien au plus récent
+            proximites.append(dict(a=a_, b=b_, rel="proximité", t=items[b_]["t0"]))
     ech = Echelle([o["t0"] for o in items.values()], T_AUJ)
     rang_voie = {v: i for i, v in enumerate(voies_ordre)}
     preparer(items, inter, ech, T_AUJ)
@@ -1231,7 +1252,7 @@ def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
           bornes(items, poly)
           rangees = placer(items, voies_ordre, poly, continuations, collages_actifs(),
                            souhaits=[r for r in renvois if r.get("raison") == "trop long ou croisement"
-                                     and r["rel"] not in ("passage", "indirect")])   # liens secondaires : sans attraction)
+                                     and r["rel"] not in ("passage", "indirect")] + proximites)   # liens secondaires : sans attraction ; proximités : attraction)
           # Continuations qui n'ont pas pu rester sur la même rangée, ou dont le successeur porte des
           # renvois (ils seraient entre la fin et la suite) : lien dessiné normal
           # (un bandeau, sous le niveau de la barre, ne gêne pas les renvois de sa section)
@@ -2538,8 +2559,9 @@ def legende(m, apercu):
         x0 = x
         x += w + 20
         return x0
+    familles_presentes = {o["famille"] for o in m["items"].values()} | set(m["voie_index"])
     for k, (t, c) in FAMILLES.items():
-        if k in m["voie_index"] and k != VOIE_SANS_GEN:
+        if k in familles_presentes and k not in (VOIE_SANS_GEN, VOIE_OUVRIERE):
             x0 = place(22 + larg(t, FS))
             el.append(f'<rect x="{x0}" y="{y - 10}" width="16" height="12" rx="2" fill="{c}"/>' + texte(x0 + 22, y, t, FS, cls="legende-t"))
     for rel, st in STYLE_LIEN.items():
@@ -2560,7 +2582,7 @@ def legende(m, apercu):
         t = "issu de X, devient Y, absorbé par Y… : lien en renvoi"
         x0 = place(larg(t, FS))
         el.append(texte(x0, y, t, FS, False, "#555555", cls="legende-t", italique=True))
-    if VOIE_SANS_GEN in m["voie_index"]:
+    if VOIE_SANS_GEN in m["voie_index"] or any(o.get("sans_gen") for o in m["items"].values()):
         t = "aucun ancêtre documenté"
         x0 = place(30 + larg(t, FS))
         el.append(f'<path d="M{x0 + 10} {y - 11} H{x0 + 6} V{y + 2} H{x0 + 10}" stroke="#333333" stroke-width="1.6" '

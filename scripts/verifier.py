@@ -264,10 +264,11 @@ def verifier_svg(chemin, cpt, err):
     for g in racine.iter(S + "g"):
         if (g.get("class") or "").startswith("org") and g.find(S + "path[@class='sans-ancetre']") is not None:
             crochets.add(g.get("data-id"))
-    for q in crochets:
-        y_ = barres.get(q, (0, -1, 0, 0))[1]
-        if voie_sg is None or not (voie_sg[0] <= y_ <= voie_sg[0] + voie_sg[1]):
-            faute("sans généalogie hors voie", f"{q} : crochet hors de la voie « Sans généalogie documentée »")
+    # Depuis le 22 novembre 2026, ces partis sont dans la voie de leur famille : le crochet doit être présent
+    # exactement sur les partis sans ancêtre documenté (organisations.csv), où qu'ils soient
+    attendus = {q for q in barres if orgs.get(q, {}).get("sans_genealogie") == "oui"}
+    for q in crochets ^ attendus:
+        faute("sans généalogie hors voie", f"{q} : crochet {'en trop' if q in crochets else 'manquant'}")
     if voie_sg is not None and n_annonce != len(crochets):
         faute("sans généalogie hors voie", f"titre de la voie : {n_annonce} annoncées, {len(crochets)} dessinées")
     # ---------- G7 : aucun parti du centre affiché, sauf ancêtre ou exception saisie ----------
