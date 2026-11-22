@@ -1,4 +1,4 @@
-# G-n-aGauche
+# GeneaGauche
 
 Arbre généa-phylo-génétique des organisations de gauche en France : filiations, scissions,
 fusions, appartenance aux Internationales, et (à venir) passages de militants d'une
@@ -11,6 +11,8 @@ survol, repli des familles, clé des Internationales) : [`arbres/arbre.html`](ar
 et ouvrir dans un navigateur. Une version par famille, pour l'impression : [`arbres/`](arbres/).
 
 ## Site en ligne
+
+Adresse : **https://srcchi.github.io/GeneaGauche/**
 
 Le site (GitHub Pages) publie la page d'accueil `site/index.html` et les arbres de `arbres/`, tels qu'ils ont été
 produits et committés : `.github/workflows/pages.yml` les assemble et les publie à chaque push qui touche `site/` ou

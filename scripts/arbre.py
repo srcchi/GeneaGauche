@@ -27,7 +27,7 @@ import porte
 
 ENDPOINT = "https://query.wikidata.org/sparql"
 HEADERS = {
-    "User-Agent": "arbre-gauche-fr/0.2 (https://github.com/srcchi/G-n-aGauche) python-requests",
+    "User-Agent": "arbre-gauche-fr/0.2 (https://github.com/srcchi/GeneaGauche) python-requests",
     "Accept": "application/sparql-results+json",
 }
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))     # racine du dépôt

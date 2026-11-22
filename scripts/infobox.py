@@ -27,7 +27,7 @@ import mwparserfromhell
 import requests
 
 API = "https://fr.wikipedia.org/w/api.php"
-HEADERS = {"User-Agent": "arbre-gauche-fr/0.1 (https://github.com/srcchi/G-n-aGauche) python-requests"}
+HEADERS = {"User-Agent": "arbre-gauche-fr/0.1 (https://github.com/srcchi/GeneaGauche) python-requests"}
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))     # racine du dépôt
 DATA = os.path.join(RACINE, "data")
 PROFONDEUR = 2

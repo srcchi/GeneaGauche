@@ -29,7 +29,7 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))     # racin
 DATA = os.path.join(RACINE, "data")
 ENDPOINT = "https://query.wikidata.org/sparql"
 HEADERS = {
-    "User-Agent": "arbre-gauche-fr/0.1 (https://github.com/srcchi/G-n-aGauche) python-requests",
+    "User-Agent": "arbre-gauche-fr/0.1 (https://github.com/srcchi/GeneaGauche) python-requests",
     "Accept": "application/sparql-results+json",
 }
 CACHE = os.path.join(DATA, "cache_wikidata_orgs.json")

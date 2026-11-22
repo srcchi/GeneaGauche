@@ -310,7 +310,7 @@ def libelles_types(ids):
         q = ("SELECT ?t ?l WHERE { VALUES ?t { %s } OPTIONAL { ?t rdfs:label ?l . "
              "FILTER(LANG(?l) = 'fr') } }" % " ".join(f"wd:{i}" for i in lot))
         r = requests.post("https://query.wikidata.org/sparql", data={"query": q, "format": "json"},
-                          headers={"User-Agent": "G-n-aGauche/0.3 (https://github.com/srcchi/G-n-aGauche) "
+                          headers={"User-Agent": "GeneaGauche/0.3 (https://github.com/srcchi/GeneaGauche) "
                                                  "python-requests",
                                    "Accept": "application/sparql-results+json"}, timeout=120)
         r.raise_for_status()

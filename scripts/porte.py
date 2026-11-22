@@ -25,7 +25,7 @@ import requests
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE = os.path.join(RACINE, "data", "cache_porte.json")
 ENDPOINT = "https://query.wikidata.org/sparql"
-HEADERS = {"User-Agent": "arbre-gauche-fr/0.1 (https://github.com/srcchi/G-n-aGauche) python-requests",
+HEADERS = {"User-Agent": "arbre-gauche-fr/0.1 (https://github.com/srcchi/GeneaGauche) python-requests",
            "Accept": "application/sparql-results+json"}
 
 EXCLUES = {

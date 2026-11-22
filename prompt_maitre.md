@@ -9,7 +9,7 @@ Consolidated master prompt, state of 15 November 2026 (branch `Affiche`). It mer
 PROJECT: Genealogy tree of French left and far-left political organisations.
 GOAL: understand the present through its lineage. Show renamings, splits, mergers, absorptions, and affiliations to Internationals, as a readable and aesthetic tree.
 
-CONTEXT: repository `D:\G-n-aGauche` (Windows, git, remote github.com/srcchi/G-n-aGauche, branches `main` and `Affiche`), conda environment. Layout:
+CONTEXT: repository `D:\G-n-aGauche` (Windows, git, remote github.com/srcchi/GeneaGauche, branches `main` and `Affiche`), conda environment. Layout:
 
 | Folder | Content |
 |---|---|

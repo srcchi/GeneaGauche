@@ -2624,7 +2624,7 @@ HTML = r"""<!doctype html>
   <label><input type="checkbox" id="cadres" checked> affiliations</label>
   <a href="vue_internationales.html">Vue par Internationale</a>
   <span class="familles" id="familles" aria-label="Replier une famille"></span>
-  <span class="liens-site"><a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/G-n-aGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></span>
+  <span class="liens-site"><a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></span>
 </header>
 <main>
   <div id="bulle" role="tooltip"></div>
@@ -2636,7 +2636,7 @@ HTML = r"""<!doctype html>
     </details>
   </aside>
 </main>
-<footer>Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a> (licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a>, chaque citation renvoie à son article) et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données : <a href="https://github.com/srcchi/G-n-aGauche">dépôt GitHub</a>. <a href="https://github.com/srcchi/G-n-aGauche/issues/new?template=erreur.yml">Signaler une erreur</a>.</footer>
+<footer>Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a> (licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a>, chaque citation renvoie à son article) et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données : <a href="https://github.com/srcchi/GeneaGauche">dépôt GitHub</a>. <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml">Signaler une erreur</a>.</footer>
 <script>
 const D = __DONNEES__;
 const svg = document.getElementById('arbre'), vue = document.getElementById('vue');
@@ -2801,7 +2801,7 @@ HTML_VUE = r"""<!doctype html>
   #vue .membre { cursor:pointer; }
   #vue .membre:hover rect { stroke:#000; stroke-width:2; }
 </style></head>
-<body><header><a href="arbre.html">Retour à la généalogie</a> · <a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/G-n-aGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></header><div id="vue">__SVG__</div><footer>Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a> (licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a>, chaque citation renvoie à son article) et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données : <a href="https://github.com/srcchi/G-n-aGauche">dépôt GitHub</a>. <a href="https://github.com/srcchi/G-n-aGauche/issues/new?template=erreur.yml">Signaler une erreur</a>.</footer></body></html>
+<body><header><a href="arbre.html">Retour à la généalogie</a> · <a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></header><div id="vue">__SVG__</div><footer>Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a> (licence <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr">CC BY-SA 4.0</a>, chaque citation renvoie à son article) et <a href="https://www.wikidata.org/">Wikidata</a> (CC0). Méthode, code et données : <a href="https://github.com/srcchi/GeneaGauche">dépôt GitHub</a>. <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml">Signaler une erreur</a>.</footer></body></html>
 """
 
 

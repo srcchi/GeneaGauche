@@ -35,7 +35,7 @@ SORTIE = os.path.join(DATA, "sortie")
 MANUEL = os.path.join(DATA, "manuel")
 CACHE = os.path.join(SORTIE, "cache_enrichissement.json")
 # Règle des API Wikimedia : un User-Agent descriptif avec un moyen de contact (ici, l'adresse du dépôt)
-HEADERS = {"User-Agent": "G-n-aGauche/0.3 (https://github.com/srcchi/G-n-aGauche) python-requests"}
+HEADERS = {"User-Agent": "GeneaGauche/0.3 (https://github.com/srcchi/GeneaGauche) python-requests"}
 LANGUES = ["en", "es", "ca", "it", "de", "pt"]   # quand il n'y a pas d'article en français
 
 # ---------- Mots déclencheurs ----------

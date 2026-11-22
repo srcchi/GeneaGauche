@@ -37,7 +37,7 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SORTIE = os.path.join(RACINE, "data", "sortie")
 MANUEL = os.path.join(RACINE, "data", "manuel")
 CACHE = os.path.join(SORTIE, "cache_medias.json")
-UA = {"User-Agent": "G-n-aGauche/0.3 (https://github.com/srcchi/G-n-aGauche) python-requests",
+UA = {"User-Agent": "GeneaGauche/0.3 (https://github.com/srcchi/GeneaGauche) python-requests",
       "Accept": "application/sparql-results+json"}
 
 PROP_VERS_MEDIA = {"P2813": "organe", "P1830": "propriété"}           # organisation -> média
