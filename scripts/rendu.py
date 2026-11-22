@@ -338,6 +338,7 @@ def charger():
         orgs[r["id"]] = dict(id=r["id"], label=r["label"], etiquette=etiq.get(r["id"], r["nom_court"]),
                              voie=VOIE_SANS_GEN if sans_gen else r["famille"], famille=r["famille"], couleur=couleur,
                              sans_gen=sans_gen, t0=t0, t1=t1, statut=statut, an0=r["fondation"], mois0=r["fondation_mois"],
+                             approx=r.get("fondation_approchee") == "oui",
                              fin_txt=fin_txt, affil=[], majeure=statut.startswith("actif") or vie > VIE_MAJEURE,
                              details=[r["label"], f"fondation : {date_longue(r['fondation'], r['fondation_mois'])}",
                                       fin_detail, f"famille : {r['famille']}",
@@ -593,6 +594,8 @@ def construire_fiches(orgs, liens, inter, composantes, medias_lignes):
         # Présentation : famille, fondation, fin
         fam = FAMILLE_ADJ.get(o["famille"], "")
         fond = f"{MOIS_FR[int(o['mois0']) - 1]} {o['an0']}" if o.get("mois0") else str(o["an0"])
+        if o.get("approx"):
+            fond = f"vers {o['an0']} (date approchée)"
         fin = ("toujours active" if o["statut"].startswith("actif") else
                f"disparue en {o['fin_txt']}" if o["fin_txt"] else "")
         dire(f"Organisation{' ' + fam if fam else ''} fondée en {fond}" + (f", {fin}" if fin else ""))
@@ -813,7 +816,7 @@ def preparer(items, inter, ech, T_AUJ):
         else:
             o["x1"] = max(ech.X(T_AUJ), o["x0"] + MIN_W)
             o["x1_vis"] = o["x1"] + DEGRADE
-        o["dates"] = f"{o['an0']}–{o['fin_txt']}"
+        o["dates"] = f"{'vers ' if o.get('approx') else ''}{o['an0']}–{o['fin_txt']}"
         b = base(o)
         # Noms successifs : l'étiquette donne le premier nom (SFIC), s'il tient dans la barre
         if o.get("noms") and abs(o["noms"][0][0] - o["t0"]) < 1:
@@ -1156,6 +1159,8 @@ def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
                 and 0 <= b["x0"] - a["x1"] < GAP
                 and sum(1 for x in par_source[l["a"]] if x["rel"] == "renommage") == 1):
             continue
+        if not a["tag_dedans"] and not a.get("sans_tag") and a["x0"] + a["tag_w"] > b["x0"] - 2:
+            continue      # onglet du prédécesseur au-dessus du successeur (CMC-PCF puis FNARC) : lien ordinaire
         continuations.add((l["a"], l["b"]))   # onglet au-dessus du début du successeur : rien ne gêne
     # Bandeau d'Internationale et sa section : même rangée, la bande de la section le prolonge
     suites_intl = {(q, o["section"]) for q, o in items.items() if o.get("section") in items}

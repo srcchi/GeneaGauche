@@ -47,7 +47,7 @@ Q829721,Club des cordeliers,nom court,Club des cordeliers,
 Q179885,Club des jacobins,nom court,Club des jacobins,
 Q138791715,Collectif Golem,nom court,Collectif Golem,
 Q104290787,CMC,acronyme du nom,Collectif militant communiste,
-Q116459769,CNUC,acronyme du nom,Collectif national unitaire des communistes,
+Q116459769,CNUC,acronyme du nom,Collectif national unitaire des communistes,oui
 Q2984612,Colère et espoir,nom court,Colère et espoir,
 Q2984984,CO,sigles.csv,Combat ouvrier,
 Q51297076,CCSR,article,Comité central socialiste révolutionnaire,
@@ -70,11 +70,11 @@ Q5176302,CMDO,article,Conseil pour le maintien des occupations,
 Q2406201,CIR,sigles.csv,Convention des institutions républicaines,oui
 Q2996341,CAP,sigles.csv,Convention pour une alternative progressiste,oui
 Q2996386,C&A,sigles.csv,Convergences et alternative,oui
-Q116456380,CCCRRLP,acronyme du nom,Coordination communiste pour la continuité révolutionnaire et la renaissance léniniste du PCF,
-Q116456366,CCRPCR,acronyme du nom,Coordination communiste pour la reconstruction d'un parti communiste révolutionnaire,
+Q116456380,CCCRRLP,acronyme du nom,Coordination communiste pour la continuité révolutionnaire et la renaissance léniniste du PCF,oui
+Q116456366,CCRPCR,acronyme du nom,Coordination communiste pour la reconstruction d'un parti communiste révolutionnaire,oui
 Q2996657,CGA,article,Coordination des groupes anarchistes,oui
 Q111422279,CLA,acronyme du nom,Coordination des libertaires de l'Ain,
-Q116458474,CMCPSCRSRL,acronyme du nom,Coordination des militants communistes du PCF pour sa continuité révolutionnaire et sa renaissance léniniste,
+Q116458474,CMCPSCRSRL,acronyme du nom,Coordination des militants communistes du PCF pour sa continuité révolutionnaire et sa renaissance léniniste,oui
 Q2996652,CDSA,article,Coordination des sans-abris,
 Q111518957,Coordination féministe,nom court,Coordination féministe,
 Q2996664,CNGR,acronyme du nom,Coordination nationale de la gauche républicaine,
@@ -291,8 +291,8 @@ Q628594,PT (1991),sigles.csv + année (homonyme),"Parti des travailleurs (France
 Q24939885,PT (2023),sigles.csv + année (homonyme),"Parti des travailleurs (France, 2015)",oui
 Q3366460,Parti frontiste,nom court,Parti frontiste,
 Q111187255,Parti lorrain,nom court,Parti lorrain,
-Q115925919,PNB (2021),acronyme du nom + année (homonyme),Parti national breton,
 Q3141006,PNB (1931),acronyme du nom + année (homonyme),Parti national breton,
+Q115925919,PNB (2021),acronyme du nom + année (homonyme),Parti national breton,
 Q111210969,PNSF,acronyme du nom,Parti national-syndicaliste français,
 Q1539236,Parti occitan,nom court,Parti occitan,
 Q135902867,Parti ouvrier,nom court,Parti ouvrier (1914),
@@ -351,6 +351,7 @@ Q100989633,Péyi Guyane,nom court,Péyi Guyane,
 Q65143318,Péyi-A,nom court,Péyi-A,
 Q1694377,PRCF,sigles.csv,Pôle de renaissance communiste en France,oui
 Q112898155,RED Jeunes,nom court,RED Jeunes,
+fr:Rassemblement communiste,Rassemblement communiste,nom court,Rassemblement communiste,oui
 Q2271578,RGR,sigles.csv,Rassemblement des gauches républicaines,
 Q959435,RPFC,acronyme du nom,Rassemblement du peuple franc-comtois,
 Q3419904,RDM,acronyme du nom,Rassemblement démocratique martiniquais,
@@ -369,8 +370,8 @@ Q30741057,RSÉ,acronyme du nom,Rézistan's Égalité 974,
 Q924501,Sabaudia-MRS,nom court,Sabaudia-MRS,
 Q1332068,SFIO,sigles.csv,Section française de l'Internationale ouvrière,oui
 Q3487404,Socialisme et démocratie,nom court,Socialisme et démocratie,
-fr:Socialisme ou barbarie (2025),SoB (2025),sigles.csv + année (homonyme),Socialisme ou barbarie,oui
 Q1631419,SoB (1949),sigles.csv + année (homonyme),Socialisme ou barbarie,
+fr:Socialisme ou barbarie (2025),SoB (2025),sigles.csv + année (homonyme),Socialisme ou barbarie,oui
 Q109658282,Socialist Movement,nom court,Socialist Movement,
 Q11696853,SOONL,acronyme du nom,Socialist Organisation of National Liberation,
 Q3487413,Socialistes indépendants,nom court,Socialistes indépendants,
@@ -396,8 +397,7 @@ Q2540732,UGCS,sigles.csv,Union des groupes et clubs socialistes,
 Q111628305,UJR,acronyme du nom,Union des jeunes révolutionnaires,
 Q3550161,UJC(ml),sigles.csv,Union des jeunesses communistes marxistes-léninistes,oui
 Q3550193,URR,acronyme du nom,Union des républicains radicaux,
-Q116456095,URCF (2003),sigles.csv + année (homonyme),Union des révolutionnaires-communistes de France,
-fr:Union des révolutionnaires-communistes de France,URCF (2004),sigles.csv + année (homonyme),Union des révolutionnaires-communistes de France,oui
+fr:Union des révolutionnaires-communistes de France,URCF,sigles.csv,Union des révolutionnaires-communistes de France,oui
 Q3550207,UTCL,sigles.csv,Union des travailleurs communistes libertaires,oui
 Q3550228,UEC,sigles.csv,Union des étudiants communistes,oui
 Q3107400,UPA,article,Union du peuple alsacien,

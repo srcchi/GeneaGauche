@@ -456,7 +456,7 @@ def verifier_donnees(cpt, err):
             faute("clé sans citation", f"{r['nom']} <- {r['autre_nom']} ({r['type']})")
     affiches = {r["id"] for r in lire("organisations.csv") if r.get("garde") == "oui"}
     for r in lire("liens.csv"):
-        if r["source"] not in affiches or r["cible"] not in affiches or r.get("preuve") == "manuel":
+        if r["source"] not in affiches or r["cible"] not in affiches or r.get("preuve") in ("manuel", "wikidata"):
             continue
         if not corpus.verifier(r.get("citation", ""), r.get("source_citation", "")):
             faute("citations introuvables", f"lien {r['source_nom']} -> {r['cible_nom']}")

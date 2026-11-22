@@ -613,6 +613,8 @@ def main():
             d["dates_d"].insert(0, (annee(r["dissolution"]), "manuel"))
         if r.get("courants", "").strip():
             d["courants_manuels"] = [c.strip() for c in r["courants"].split("|") if c.strip()]
+        if "date approchée" in r.get("note", "").lower():
+            d["fondation_approchee"] = True       # « vers 2001 » : dessinée quand même, signalée comme telle
         stats["noeuds_manuels"] += 1
 
     # Dates retenues : la première source (correction > Wikidata > Wikipédia), les autres notées
@@ -777,6 +779,30 @@ def main():
         for x in (a, b):
             noeuds.setdefault(x, None)
         stats["manuels_ajoutes"] += 1
+    # Doublons (data/manuel/doublons.csv : garder, retirer, raison, source) : une même organisation sous deux
+    # identifiants (nœud manuel et élément Wikidata). Les liens et les dates du retiré passent au gardé.
+    stats["doublons_fusionnes"] = 0
+    for r in lire(os.path.join("manuel", "doublons.csv")):
+        g_, x_ = r.get("garder", "").strip(), r.get("retirer", "").strip()
+        if not (g_ and x_ and noeuds.get(g_) and noeuds.get(x_)) or g_ == x_:
+            continue
+        for (a, b) in [k for k in aretes if x_ in k]:
+            e = aretes.pop((a, b))
+            a2, b2 = (g_ if a == x_ else a), (g_ if b == x_ else b)
+            if a2 == b2:
+                continue
+            if (a2, b2) in aretes:
+                aretes[(a2, b2)]["sources"] |= e["sources"]
+                aretes[(a2, b2)]["relations"] |= e["relations"]
+            else:
+                aretes[(a2, b2)] = e
+        d_g, d_x = noeuds[g_], noeuds[x_]
+        d_g["sources"] |= d_x["sources"]
+        for cle in ("fondation", "dissolution"):
+            if not d_g.get(cle) and d_x.get(cle):
+                d_g[cle], d_g[cle + "_source"] = d_x[cle], d_x.get(cle + "_source", "")
+        noeuds[x_] = None
+        stats["doublons_fusionnes"] += 1
     # Extrémités inconnues (ne devrait pas arriver)
     for k in [k for k in aretes if not noeuds.get(k[0]) or not noeuds.get(k[1])]:
         stats["aretes_extremite_inconnue"] += 1
@@ -941,6 +967,12 @@ def main():
                 e["preuve"].update(citation=e["citation1"][1], source=e["citation1"][0])
             return True
         p = preuves.preuve_lien(corpus, a, b, noms_de)
+        if not p and "wikidata" in e["sources"]:
+            # Aucune phrase ni champ d'infobox ne le dit, mais Wikidata l'affirme (consigne du 22 novembre
+            # 2026 : dessiner dès qu'on a l'information) : preuve « wikidata », la propriété en citation
+            rels = " | ".join(sorted(x for x in e["relations"] if not x.startswith("wikipedia:")))
+            p = dict(preuve="wikidata", citation=f"Wikidata : {lab(a)} -> {lab(b)} ({rels})", source="wikidata",
+                     indice="", champ="")
         if p:
             e["preuve"] = p
         return bool(p)
@@ -1699,7 +1731,7 @@ def main():
                             "oui" if q in garde else "",
                             " | ".join(sorted(lab(s) for s in emanations.get(q, ()))),
                             "oui" if d.get("sans_genealogie") else "",
-                            d.get("sans_genealogie_source", "")])
+                            d.get("sans_genealogie_source", ""), "oui" if d.get("fondation_approchee") else ""])
     ecrire("noms_successifs.csv", ["id", "label", "annee", "nom", "citation", "source"],
            noms_successifs(corpus, garde))
     ecrire("organisations.csv",
@@ -1708,7 +1740,7 @@ def main():
             "fin_deduite", "fin_deduite_source", "actif", "famille", "outre_mer", "courants",
             "courants_sources", "courant_principal", "famille_courant", "perimetre_douteux",
             "sources", "journaux", "statut_fin", "actif_auto", "garde", "organisations_liees",
-            "sans_genealogie", "sans_genealogie_source"],
+            "sans_genealogie", "sans_genealogie_source", "fondation_approchee"],
            lignes_orgs)
     ecrire("elagues.csv", ["id", "label", "cause", "statut_fin", "famille", "detail"], lignes_elag)
     ecrire("a_dater.csv", ["id", "label", "raison", "famille"], orgs_a_dater)
