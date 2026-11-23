@@ -451,7 +451,10 @@ def noms_successifs(corpus, garde):
                 if not n or not n.group(2).strip()[:1].isupper():
                     continue
                 # Citation dans le texte brut : de l'année à la parenthèse fermante
-                c = re.search(re.escape(n.group(1)) + r"[^\n]{0,40}?\(" + re.escape(n.group(2)) + r"\)", txt)
+                # (depuis le début du modèle de date s'il y en a un : « {{date|13|novembre|2010}}<br><small>(…)</small> »,
+                # sinon la citation commençait par « 2010}} » ; 23 novembre 2026)
+                c = re.search(r"(?:\{\{[Dd]ate\|(?:[^{}|\n]*\|){0,3}[^{}|\n]*?)?" + re.escape(n.group(1)) + r"[^\n]{0,40}?\("
+                              + re.escape(n.group(2)) + r"\)(?:\s*</small>)?", txt)
                 if c and corpus.verifier(c.group(0), f"fr:{titre}"):
                     noms.append([q, titre, n.group(1), n.group(2).strip(), c.group(0), f"fr:{titre}"])
             if len(noms) >= 2 and len({x[3] for x in noms}) >= 2:

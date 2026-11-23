@@ -1,16 +1,33 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { BARRE_H, chercher, genealogie, indexer, placer } from "./genealogie.js";
+import { BARRE_H, MODES_COMPARAISON, chercher, comparer, genealogie, indexer, placer } from "./genealogie.js";
 
 const DEPOT = "https://github.com/srcchi/GeneaGauche";
 const SIGNALER = `${DEPOT}/issues/new?template=erreur.yml`;
-const EXEMPLES = ["Q170972", "Q192821", "Q27978402", "Q2996386", "Q557045"]; // PS, PCF, LFI, NPA, Les Écologistes
+// Parcours guidés de l'accueil : une organisation (par son sigle) et les réglages de sa frise
+const PARCOURS = [
+  { sigle: "PS", titre: "La famille socialiste", texte: "Des premiers partis socialistes à la SFIO, puis au PS et à ses scissions." },
+  { sigle: "PCF (1920)", titre: "Le communisme depuis Tours", texte: "La scission de 1920 et tout ce qui en descend." },
+  { sigle: "Les Écologistes", titre: "L'écologie politique", texte: "Des fédérations des années 1970 aux Écologistes d'aujourd'hui." },
+  { sigle: "LCR (1974)", titre: "Les trotskystes, de la LCR au NPA", texte: "La lignée de la Quatrième Internationale (Secrétariat unifié)." },
+  { sigle: "OCI", titre: "Le courant lambertiste", texte: "De l'OCI au POI et au POID." },
+  { sigle: "LFI", titre: "La France insoumise et ses composantes", texte: "Avec les liens secondaires : organisations membres et passages.", secondaires: true },
+  { sigle: "MCFml", titre: "Les maoïstes", texte: "Le MCF(ml), le PCMLF et leurs héritiers." },
+  { sigle: "FA", titre: "Les anarchistes et libertaires", texte: "La Fédération anarchiste et sa lignée." },
+];
+// Comparaisons proposées : deux organisations (par leur sigle)
+const COMPARAISONS = [["LFI", "PS"], ["PCF (1920)", "PSOP"], ["Les Écologistes", "PS"], ["LO", "PS"], ["NPA (2009)", "LO"]];
 
-// Adresse partageable : #Q170972 (et « +secondaires »)
+// Adresses partageables : #Q170972 (et « +secondaires ») ; #comparer/Q…/Q…
 function lireAdresse() {
   const h = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+  if (h.startsWith("comparer/")) {
+    const [, a, b] = h.split("/");
+    return { mode: "comparer", a: a || null, b: b || null, secondaires: false };
+  }
   const [id, opt] = h.split("+");
-  return { id: id || null, secondaires: opt === "secondaires" };
+  return { mode: id ? "org" : "accueil", id: id || null, secondaires: opt === "secondaires" };
 }
+const adresseComparer = (a, b) => `comparer/${a || ""}/${b || ""}`;
 
 let canvas;
 function mesurer(texte, taille = 12, gras = true) {
@@ -58,13 +75,15 @@ export default function App() {
     <div className="appli">
       <header>
         <a className="titre" href="../index.html">Généalogie de la gauche française</a>
-        <Recherche organisations={donnees.organisations} aller={aller} />
+        <Recherche organisations={donnees.organisations} onChoisir={(o) => aller(o.id)} />
         <nav>
           <a href="../arbres/arbre.html">Arbre complet</a>
           <a href={SIGNALER} target="_blank" rel="noopener">Signaler une erreur</a>
         </nav>
       </header>
-      {choisie ? (
+      {adresse.mode === "comparer" ? (
+        <Comparaison index={index} donnees={donnees} a={adresse.a} b={adresse.b} aller={aller} />
+      ) : choisie ? (
         <main>
           <section className="frise">
             <div className="reglages">
@@ -96,7 +115,7 @@ export default function App() {
           <Fiche o={choisie} index={index} donnees={donnees} aller={aller} />
         </main>
       ) : (
-        <Accueil index={index} aller={aller} inconnue={adresse.id} />
+        <Accueil index={index} donnees={donnees} aller={aller} inconnue={adresse.id} />
       )}
       <footer>
         Données : citations de <a href="https://fr.wikipedia.org/">Wikipédia</a> (licence{" "}
@@ -108,39 +127,197 @@ export default function App() {
   );
 }
 
-function Accueil({ index, aller, inconnue }) {
+function parSigle(donnees, sigle) {
+  return donnees.organisations.find((o) => o.sigle === sigle) || null;
+}
+
+function Accueil({ index, donnees, aller, inconnue }) {
+  const parcours = PARCOURS.map((p) => ({ ...p, o: parSigle(donnees, p.sigle) })).filter((p) => p.o);
+  const comparaisons = COMPARAISONS.map(([x, y]) => [parSigle(donnees, x), parSigle(donnees, y)])
+    .filter(([x, y]) => x && y);
+  const [a, setA] = useState(null);
+  const [b, setB] = useState(null);
+  // organisations actives, par famille, dans l'ordre des familles de l'arbre
+  const actives = Object.entries(donnees.familles).map(([cle, f]) => ({
+    cle, ...f,
+    orgs: donnees.organisations.filter((o) => o.actif && o.famille === cle)
+      .sort((x, y) => x.sigle.localeCompare(y.sigle, "fr")),
+  })).filter((f) => f.orgs.length);
+  const reliees = donnees.organisations.filter((o) => index.entrants.has(o.id) || index.sortants.has(o.id));
+  const hasard = () => aller(reliees[Math.floor(Math.random() * reliees.length)].id);
+  const resume = (o, secondaires) => {
+    const g = genealogie(index, o.id, { secondaires });
+    return `${g.ancetres.size} ancêtre${g.ancetres.size > 1 ? "s" : ""}, ${g.descendants.size} descendant${g.descendants.size > 1 ? "s" : ""}`;
+  };
   return (
     <div className="accueil">
       {inconnue && <p className="message">Organisation introuvable : {inconnue}.</p>}
-      <p>
+      <p className="intro">
         Cherchez une organisation par son nom ou son sigle : sa généalogie s'affiche sur une frise, avec ses ancêtres
         et ses descendants, y compris les petites organisations absentes de l'arbre complet. Sa fiche donne chaque
-        fait avec la citation qui le justifie.
+        fait avec la citation qui le justifie.{" "}
+        <button className="lien-bouton" onClick={hasard}>Une organisation au hasard</button>
       </p>
-      <p>Par exemple :</p>
-      <ul className="exemples">
-        {EXEMPLES.filter((q) => index.orgs.has(q)).map((q) => (
-          <li key={q}>
-            <button onClick={() => aller(q)}>{index.orgs.get(q).nom}</button>
-          </li>
+
+      <section>
+        <h2>Parcours</h2>
+        <ul className="cartes">
+          {parcours.map((p) => (
+            <li key={p.sigle}>
+              <button className="carte" style={{ "--teinte": p.o.couleur }} onClick={() => aller(p.o.id, !!p.secondaires)}>
+                <span className="carte-titre">{p.titre}</span>
+                <span className="carte-texte">{p.texte}</span>
+                <span className="carte-pied"><strong>{p.o.sigle}</strong> · {resume(p.o, !!p.secondaires)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section>
+        <h2>Comparer deux organisations</h2>
+        <p>Leurs ancêtres communs les plus proches, et les chemins qui y mènent.</p>
+        <div className="choix-comparer">
+          <ChoixOrganisation organisations={donnees.organisations} o={a} onChoisir={setA} etiquette="Première organisation" />
+          <span className="et">et</span>
+          <ChoixOrganisation organisations={donnees.organisations} o={b} onChoisir={setB} etiquette="Seconde organisation" />
+          <button className="bouton-comparer" disabled={!a || !b}
+            onClick={() => { window.location.hash = adresseComparer(a.id, b.id); }}>Comparer</button>
+        </div>
+        <p className="exemples-comparer">
+          Par exemple :{" "}
+          {comparaisons.map(([x, y], i) => (
+            <React.Fragment key={i}>
+              {i > 0 && " · "}
+              <a href={`#${adresseComparer(x.id, y.id)}`}>{x.sigle} et {y.sigle}</a>
+            </React.Fragment>
+          ))}
+        </p>
+      </section>
+
+      <section>
+        <h2>Les organisations actives aujourd'hui</h2>
+        {actives.map((f) => (
+          <div key={f.cle} className="famille">
+            <h3><span className="pastille" style={{ background: f.couleur }} /> {f.nom}</h3>
+            <ul className="puces">
+              {f.orgs.map((o) => (
+                <li key={o.id}>
+                  <button style={{ background: o.couleur, color: texteSur(o.couleur) }} title={o.nom}
+                    onClick={() => aller(o.id)}>
+                    {o.sigle}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
         ))}
-      </ul>
+      </section>
     </div>
   );
 }
 
-function Recherche({ organisations, aller }) {
+// Choix d'une organisation dans un formulaire (comparaison) : recherche, puis l'organisation choisie
+function ChoixOrganisation({ organisations, o, onChoisir, etiquette }) {
+  if (o) {
+    return (
+      <span className="choisie-puce" style={{ background: o.couleur, color: texteSur(o.couleur) }}>
+        {o.sigle}
+        <button aria-label={`Changer : ${etiquette}`} onClick={() => onChoisir(null)}>×</button>
+      </span>
+    );
+  }
+  return <Recherche organisations={organisations} onChoisir={onChoisir} placeholder={etiquette} />;
+}
+
+function Comparaison({ index, donnees, a, b, aller }) {
+  const oa = a ? index.orgs.get(a) : null;
+  const ob = b ? index.orgs.get(b) : null;
+  const c = useMemo(() => (oa && ob ? comparer(index, a, b) : null), [index, a, b, oa, ob]);
+  const changer = (cote) => (o) => {
+    window.location.hash = adresseComparer(cote === "a" ? o?.id : a, cote === "b" ? o?.id : b);
+  };
+  const lien = (q) => {
+    const o = index.orgs.get(q);
+    return <button key={q} className="lien-org" title={o.nom} onClick={() => aller(o.id)}>{o.sigle}</button>;
+  };
+  const liste = (qs) => qs.map((q, i) => (
+    <React.Fragment key={q}>{i > 0 && (i === qs.length - 1 ? " et " : ", ")}{lien(q)}</React.Fragment>
+  ));
+  const choisies = useMemo(() => new Set([a, b]), [a, b]);
+  const communs = useMemo(() => new Set(c ? c.communs : []), [c]);
+  const pluriel = c && c.communs.length > 1 ? "s" : "";
+  return (
+    <main>
+      <section className="frise">
+        <div className="choix-comparer">
+          <ChoixOrganisation organisations={donnees.organisations} o={oa} onChoisir={changer("a")}
+            etiquette="Première organisation" />
+          <span className="et">et</span>
+          <ChoixOrganisation organisations={donnees.organisations} o={ob} onChoisir={changer("b")}
+            etiquette="Seconde organisation" />
+          {oa && ob && (
+            <button className="ajuster" onClick={() => { window.location.hash = adresseComparer(b, a); }}>Inverser</button>
+          )}
+        </div>
+        {!(oa && ob) && <p className="resume">Choisissez deux organisations à comparer.</p>}
+        {oa && ob && !c && (
+          <p className="resume">
+            Aucun ancêtre commun documenté entre {oa.sigle} et {ob.sigle}, même en comptant les absorptions, les
+            passages de militants et les composantes.
+          </p>
+        )}
+        {c && (
+          <>
+            <Frise index={index} id={a} genFixe={c} choisies={choisies} communs={communs} aller={aller}
+              resume={`${c.ids.size} organisations sur les chemins entre ${oa.sigle}, ${ob.sigle} et leur${pluriel} ancêtre${pluriel} commun${pluriel} (cerclé${pluriel} de rouge).`} />
+            <Legende styles={index.styles} />
+          </>
+        )}
+      </section>
+      <aside className="fiche">
+        <h1>Comparaison</h1>
+        {c && (
+          <>
+            {c.communs.includes(a) || c.communs.includes(b) ? (
+              <p>
+                {lien(c.communs.includes(a) ? a : b)} est un ancêtre de {lien(c.communs.includes(a) ? b : a)}
+                {c.communs.length > 1 && <> ; autre{c.communs.length > 2 ? "s" : ""} ancêtre{c.communs.length > 2 ? "s" : ""} commun{c.communs.length > 2 ? "s" : ""} : {liste(c.communs.filter((q) => q !== a && q !== b))}</>}.
+              </p>
+            ) : (
+              <p>Ancêtre{pluriel} commun{pluriel} le{pluriel} plus proche{pluriel} : {liste(c.communs)}.</p>
+            )}
+            <p className="sous-titre">Trouvé {MODES_COMPARAISON[c.mode]}.</p>
+            {c.mode !== "principale" && (
+              <p className="avertissement">
+                Sans {c.mode === "absorption" ? "les absorptions" : "ces liens secondaires"}, aucun ancêtre commun
+                n'est documenté : le lien entre les deux passe par un apport minoritaire.
+              </p>
+            )}
+            <p>Chaque lien de la frise donne sa citation au survol ; chaque organisation mène à sa fiche.</p>
+          </>
+        )}
+        <p className="signaler">
+          L'entrisme n'est compté que s'il a été validé à la main : les sources le disent rarement de façon
+          explicite.
+        </p>
+      </aside>
+    </main>
+  );
+}
+
+function Recherche({ organisations, onChoisir, placeholder = "Chercher une organisation (nom ou sigle)" }) {
   const [texte, setTexte] = useState("");
   const [actif, setActif] = useState(0);
   const resultats = useMemo(() => chercher(organisations, texte), [organisations, texte]);
   const choisir = (o) => {
     setTexte("");
-    aller(o.id);
+    onChoisir(o);
   };
   return (
     <div className="recherche">
-      <input type="search" placeholder="Chercher une organisation (nom ou sigle)" value={texte}
-        aria-label="Chercher une organisation"
+      <input type="search" placeholder={placeholder} value={texte}
+        aria-label={placeholder}
         onChange={(e) => { setTexte(e.target.value); setActif(0); }}
         onKeyDown={(e) => {
           if (e.key === "ArrowDown") setActif((a) => Math.min(a + 1, resultats.length - 1));
@@ -193,8 +370,9 @@ const REPETER = 520; // sur une barre longue, le sigle revient tous les REPETER 
 const AXE = 28; // hauteur de l'axe des années, collé en haut
 
 export function Frise({ index, id, secondaires, profondeur = Infinity, pxParAn = null, aller, mesure = mesurer,
-  largeurVue = null }) {
-  const gen = useMemo(() => genealogie(index, id, { secondaires, profondeur }), [index, id, secondaires, profondeur]);
+  largeurVue = null, genFixe = null, choisies = null, communs = null, resume = null }) {
+  const genCalculee = useMemo(() => genealogie(index, id, { secondaires, profondeur }), [index, id, secondaires, profondeur]);
+  const gen = genFixe || genCalculee;
   const conteneur = useRef(null);
   const [largeur, setLargeur] = useState(largeurVue || 1000);
   useEffect(() => {
@@ -243,7 +421,7 @@ export function Frise({ index, id, secondaires, profondeur = Infinity, pxParAn =
   return (
     <>
       <p className="resume">
-        {gen.ids.size === 1
+        {resume ? resume : gen.ids.size === 1
           ? "Aucun ancêtre ni descendant documenté dans les sources."
           : `${gen.ancetres.size} ancêtre${gen.ancetres.size > 1 ? "s" : ""}, ${gen.descendants.size} descendant${gen.descendants.size > 1 ? "s" : ""}.`}{" "}
         Cliquez sur une barre pour suivre sa généalogie.
@@ -296,7 +474,7 @@ export function Frise({ index, id, secondaires, profondeur = Infinity, pxParAn =
                 for (let x = b.x0 + REPETER; x + mesure(o.sigle) + 10 < b.x1 - 20; x += REPETER) repetitions.push(x);
               }
               return (
-                <g key={o.id} className={`barre${o.id === id ? " choisie" : ""}${estompe ? " estompe" : ""}`}
+                <g key={o.id} className={`barre${(choisies ? choisies.has(o.id) : o.id === id) ? " choisie" : ""}${communs?.has(o.id) ? " commune" : ""}${estompe ? " estompe" : ""}`}
                   onClick={() => aller(o.id)} onMouseMove={(e) => montrer(e, { type: "barre", o, dates: b.dates })}
                   tabIndex={0} role="button" aria-label={`${o.nom}, ${b.dates}`}
                   onKeyDown={(e) => e.key === "Enter" && aller(o.id)}>
@@ -447,6 +625,9 @@ export function Fiche({ o, index, donnees, aller }) {
           </ol>
         </>
       )}
+      <p className="vers-comparer">
+        <a href={`#${adresseComparer(o.id, "")}`}>Comparer avec une autre organisation →</a>
+      </p>
       <p className="signaler">
         Une erreur dans cette fiche ? <a href={SIGNALER} target="_blank" rel="noopener">Signalez-la</a>, si possible
         avec la source qui le montre.

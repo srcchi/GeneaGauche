@@ -765,6 +765,7 @@ def lisible(t):
     [[page|texte]] -> texte ; {{date|10|décembre|1966}} -> 10 décembre 1966 ; {{IIIe|Internationale}} ->
     IIIe Internationale ; <ref>…</ref> retirées ; <br> -> « ; » ; « | fusion de = » -> « fusion de : »."""
     t = re.sub(r"<ref[^>]*/>|<ref[^>]*>.*?</ref>", "", t, flags=re.S)
+    t = re.sub(r"<br\s*/?>\s*(?=<small>)", " ", t)       # « 2010}}<br><small>(EELV) » : date et nom ensemble
     t = re.sub(r"<br\s*/?>", " ; ", t)
     t = re.sub(r"<[^>]+>", "", t)
     t = re.sub(r"\[\[(?:[^\]|]*\|)?([^\]]*)\]\]", r"\1", t)

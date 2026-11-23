@@ -62,8 +62,8 @@ function parcourir(depart, voisins, bout, garder, profondeur, sens) {
 }
 
 /** Ancêtres (liens entrants, de proche en proche) et descendants (liens sortants) de `id`. */
-export function genealogie(index, id, { secondaires = false, profondeur = Infinity } = {}) {
-  const garder = (l) => secondaires || LIGNEE.has(l.rel);
+export function genealogie(index, id, { secondaires = false, profondeur = Infinity, relations = LIGNEE } = {}) {
+  const garder = (l) => secondaires || relations.has(l.rel);
   const ancetres = parcourir(id, index.entrants, "a", garder, profondeur, -1);
   const descendants = parcourir(id, index.sortants, "b", garder, profondeur, +1);
   const ids = new Set([id, ...ancetres.keys(), ...descendants.keys()]);
@@ -241,4 +241,48 @@ export function chercher(organisations, texte, max = 12) {
     if (note !== null) notes.push([note + (o.dans_arbre ? 0 : 0.5), o]);
   }
   return notes.sort((a, b) => a[0] - b[0] || a[1].debut - b[1].debut).slice(0, max).map(([, o]) => o);
+}
+
+// Lignée « principale » : sans les absorptions (apport minoritaire). Avec elles, la lignée a des cycles :
+// le PSC, issu du PCF, devient le PUP, absorbé par la SFIO en 1937 ; le PCF serait ancêtre de la SFIO.
+const PRINCIPALE = new Set(["renommage", "refondation", "fusion", "scission"]);
+// En dernier recours : passages de militants, composantes, entrisme validé (demande de l'utilisateur)
+const TOUTES = new Set([...LIGNEE, "passage", "composante", "entrisme", "indirect"]);
+export const MODES_COMPARAISON = {
+  principale: "par la lignée (scissions, fusions, renommages)",
+  absorption: "en comptant les absorptions",
+  secondaires: "en comptant les passages de militants, les composantes et l'entrisme",
+};
+
+/**
+ * Comparaison de deux organisations : leurs ancêtres communs les plus proches (aucun de leurs descendants
+ * n'est lui-même commun) et les organisations sur les chemins qui en descendent jusqu'à `a` et `b`.
+ * D'abord par la lignée principale ; avec les absorptions seulement si elle ne donne aucun ancêtre commun
+ * (Les Écologistes et le PS : par le PSU, absorbé par Les Verts). Si l'une descend de l'autre, l'ancêtre
+ * commun est l'autre elle-même.
+ */
+export function comparer(index, a, b, { secondaires = false } = {}) {
+  for (const [mode, relations] of [["principale", PRINCIPALE], ["absorption", LIGNEE], ["secondaires", TOUTES]]) {
+    const opt = { relations };
+    const ga = genealogie(index, a, opt);
+    const gb = genealogie(index, b, opt);
+    const lignesA = new Set([a, ...ga.ancetres.keys()]);
+    const lignesB = new Set([b, ...gb.ancetres.keys()]);
+    const communs = [...lignesA].filter((q) => lignesB.has(q));
+    if (!communs.length) continue;
+    const desc = new Map(communs.map((q) => [q, genealogie(index, q, opt).descendants]));
+    // les plus proches ; en cas de cycle (l'un descend de l'autre et inversement), on ignore la paire
+    const proches = communs.filter((c) => !communs.some((d) => d !== c && desc.get(c).has(d) && !desc.get(d).has(c)));
+    const ids = new Set([a, b, ...proches]);
+    for (const x of [...lignesA, ...lignesB]) {
+      if (proches.some((p) => desc.get(p).has(x))) ids.add(x);
+    }
+    const garder = (l) => (secondaires ? true : relations.has(l.rel));
+    const liens = [];
+    for (const q of ids) {
+      for (const l of index.sortants.get(q) || []) if (ids.has(l.b) && garder(l)) liens.push(l);
+    }
+    return { id: a, ids, liens, ancetres: new Map(), descendants: new Map(), communs: proches, mode };
+  }
+  return null;
 }

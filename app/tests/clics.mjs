@@ -142,15 +142,69 @@ await essai("URC (identifiant manuel « fr:… ») : le dégradé de la barre ac
   verifier(ok === "ok", ok);
 });
 
+await essai("accueil : un parcours ouvre sa généalogie (« Le communisme depuis Tours »)", async () => {
+  await page.goto(base, { waitUntil: "networkidle0" });
+  const carte = await page.evaluateHandle(() =>
+    [...document.querySelectorAll(".carte")].find((c) => c.textContent.includes("Le communisme depuis Tours")));
+  verifier(carte.asElement(), "carte absente");
+  await carte.asElement().click();
+  await page.waitForFunction(() => document.querySelector(".fiche h1")?.textContent.includes("communiste"));
+});
+
+await essai("accueil : comparer deux organisations choisies au clavier (PCF et PSOP : la SFIO)", async () => {
+  await page.goto(base, { waitUntil: "networkidle0" });
+  const champs = await page.$$(".choix-comparer input[type=search]");
+  await champs[0].type("PCF (1920)");
+  await page.waitForSelector(".choix-comparer .suggestions li");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => document.querySelectorAll(".choix-comparer .choisie-puce").length === 1);
+  await (await page.$(".choix-comparer input[type=search]")).type("PSOP");
+  await page.waitForSelector(".choix-comparer .suggestions li");
+  await page.keyboard.press("Enter");
+  await page.waitForFunction(() => !document.querySelector(".bouton-comparer").disabled);
+  await page.click(".bouton-comparer");
+  await page.waitForFunction(() => document.querySelector(".fiche h1")?.textContent === "Comparaison");
+  const texte = await page.$eval(".fiche", (f) => f.textContent);
+  verifier(texte.includes("SFIO"), `résumé : ${texte.slice(0, 120)}`);
+  verifier(await page.$("g.barre.commune"), "ancêtre commun non cerclé");
+});
+
+await essai("comparaison : un exemple de l'accueil, puis « Inverser »", async () => {
+  await page.goto(base, { waitUntil: "networkidle0" });
+  await page.click(".exemples-comparer a");
+  await page.waitForFunction(() => document.querySelector(".fiche h1")?.textContent === "Comparaison");
+  const avant = await hash();
+  await page.click(".choix-comparer .ajuster");
+  await page.waitForFunction((h) => decodeURIComponent(location.hash) !== h, {}, avant);
+  const [, a1, b1] = avant.split("/");
+  verifier((await hash()) === `#comparer/${b1}/${a1}`, `adresse : ${await hash()}`);
+});
+
+await essai("fiche : « Comparer avec une autre organisation » garde la première", async () => {
+  await page.goto(`${base}#Q170972`, { waitUntil: "networkidle0" });
+  await page.click(".vers-comparer a");
+  await page.waitForSelector(".choix-comparer .choisie-puce");
+  verifier((await hash()) === "#comparer/Q170972/", `adresse : ${await hash()}`);
+});
+
+await essai("accueil : une organisation active, puis « au hasard »", async () => {
+  await page.goto(base, { waitUntil: "networkidle0" });
+  await page.click(".puces button");
+  await page.waitForSelector(".fiche h1");
+  await page.goto(base, { waitUntil: "networkidle0" });
+  await page.click(".lien-bouton");
+  await page.waitForSelector(".fiche h1");
+});
+
 await essai("organisation inconnue : message, pas de page blanche", async () => {
   await page.goto(`${base}#Q000`, { waitUntil: "networkidle0" });
   await page.waitForSelector(".accueil");
   verifier((await page.$eval(".accueil", (a) => a.textContent)).includes("introuvable"), "message absent");
 });
 
-await essai("accueil de l'application : un exemple cliquable", async () => {
+await essai("accueil de l'application : une carte de parcours cliquable", async () => {
   await page.goto(base, { waitUntil: "networkidle0" });
-  await page.click(".exemples button");
+  await page.click(".carte");
   await page.waitForSelector(".fiche h1");
 });
 

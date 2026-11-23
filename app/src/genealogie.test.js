@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { chercher, genealogie, indexer, placer } from "./genealogie.js";
+import { chercher, comparer, genealogie, indexer, placer } from "./genealogie.js";
 
 const donnees = JSON.parse(readFileSync(new URL("../public/graphe.json", import.meta.url), "utf-8"));
 const index = indexer(donnees);
@@ -72,4 +72,22 @@ test("descendance dans le temps : le PS descend de la SFIO, mais pas les organis
   const g = genealogie(index, id("SFIO"));
   assert.ok(g.descendants.has(id("PS")));
   assert.ok(!g.descendants.has(id("FTSF")));
+});
+
+test("comparer le PCF et le PSOP : la SFIO est leur ancêtre commun le plus proche", () => {
+  const c = comparer(index, id("PCF (1920)"), id("PSOP"));
+  assert.deepEqual(c.communs.map((q) => index.orgs.get(q).sigle), ["SFIO"]);
+  assert.ok(c.ids.has(id("SFIO")) && c.ids.has(id("PSOP")) && c.ids.has(id("PCF (1920)")));
+  assert.equal(c.mode, "principale");
+});
+
+test("comparer le PS et le PCF : le PCF est un ancêtre du PS (PSU 1960, UCRG 1966)", () => {
+  const c = comparer(index, id("PS"), id("PCF (1920)"));
+  assert.deepEqual(c.communs, [id("PCF (1920)")]);
+  for (const s of ["PSU (1960)", "UCRG"]) assert.ok(c.ids.has(id(s)), s);
+});
+
+test("comparer la SFIO et le PS : l'un descend de l'autre", () => {
+  const c = comparer(index, id("SFIO"), id("PS"));
+  assert.deepEqual(c.communs, [id("SFIO")]);
 });

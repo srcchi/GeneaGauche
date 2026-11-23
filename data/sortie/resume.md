@@ -52,7 +52,7 @@ Dates : 102 fondations et 40 dissolutions avec un mois (lu dans l'infobox, seule
 Affiliations : toutes en date_certainty = unknown (les sources ne donnent pas la période d'adhésion).
 Période recopiée : durée de vie du parti, bornée par celle de l'Internationale.
 
-Sigles (data/manuel/sigles.csv) : 570 organisations, dont 133 avec un sigle ; 1 ajoutées à cette exécution.
+Sigles (data/manuel/sigles.csv) : 570 organisations, dont 133 avec un sigle ; 0 ajoutées à cette exécution.
 
 ## Liens validés à la main
 - Candidats de la phase 0 acceptés (decision = oui) : 0
@@ -62,7 +62,7 @@ Sigles (data/manuel/sigles.csv) : 570 organisations, dont 133 avec un sigle ; 1 
 
 ## Types (data/manuel/types.csv)
 parti 424, coalition 34, satellite 38, internationale 75, fondatrice 22, étrangère 181.
-3 types saisis à la main, 1 lignes ajoutées au fichier.
+3 types saisis à la main, 0 lignes ajoutées au fichier.
 Coalitions et satellites ne sont jamais des boîtes ; un satellite rattaché à un parent apparaît
 dans la colonne organisations_liees de ce parent.
 

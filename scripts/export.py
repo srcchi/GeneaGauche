@@ -91,8 +91,29 @@ def main():
         sortie_inter.append(dict(id=i, nom=d["nom"], sigle=re.sub(r"\s*\(\d{4}\)$", "", d["sigle"] or ""),
                                  debut=d["debut"] or None, fin=d["fin"] or None, couleur=d["couleur"],
                                  predecesseurs=d["pred"], membres=membres))
+    # Entrisme validé à la main (data/manuel/entrisme.csv, scripts/entrisme.py, decision = oui) : un lien
+    # secondaire « entrisme », avec sa citation, et une phrase dans la fiche des deux organisations
+    par_id = {o["id"]: o for o in sortie_orgs}
+    chemin_e = os.path.join(RACINE, "data", "manuel", "entrisme.csv")
+    n_entrisme = 0
+    if os.path.exists(chemin_e):
+        with open(chemin_e, encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                e, h = r["entriste_id"], r["hote_id"]
+                if r.get("decision", "").strip().lower() != "oui" or e not in par_id or h not in par_id:
+                    continue
+                texte, url = R.lien_source(r["source"])
+                an_e = int(r["annee"]) if r.get("annee", "").strip().isdigit() else None
+                sortie_liens.append(dict(a=e, b=h, rel="entrisme", t=an_e, nom="entrisme", preuve="manuel",
+                                         citation=R.lisible(r["citation"]), source=texte, url=url))
+                for q, phrase in ((e, f"Entrisme dans {{{{org:{h}}}}}"), (h, f"Entrisme de militants de {{{{org:{e}}}}}")):
+                    o = par_id[q]
+                    o["sources"].append(dict(citation=R.lisible(r["citation"]), texte=texte, url=url))
+                    o["phrases"].append(f"{phrase}{f' ({an_e})' if an_e else ''} [{len(o['sources'])}].")
+                n_entrisme += 1
     styles = {k: dict(nom=v["nom"], couleur=v["couleur"], tirets=v.get("dash") or None, epaisseur=v["w"])
               for k, v in R.STYLE_LIEN.items()}
+    styles["entrisme"] = dict(nom="entrisme (validé à la main)", couleur="#1F7A8C", tirets="5 2 1 2", epaisseur=1.6)
     donnees = dict(
         genere_le=R.datetime.date.today().isoformat(), aujourdhui=round(T_AUJ, 3),
         licence="Citations de Wikipédia (CC BY-SA 4.0, chaque citation renvoie à son article) et Wikidata (CC0)",
@@ -108,7 +129,7 @@ def main():
           f"{len(rattachees)} rattachées par un lien de lignée : "
           + ", ".join(sorted(orgs[q]["etiquette"] or orgs[q]["label"] for q in rattachees)))
     print(f"{len(sortie_orgs)} organisations ({n_arbre} dans l'arbre principal, {len(sortie_orgs) - n_arbre} hors), "
-          f"{len(sortie_liens)} liens, {len(sortie_inter)} Internationales -> {os.path.relpath(SORTIE, RACINE)} "
+          f"{len(sortie_liens)} liens (dont {n_entrisme} d'entrisme validés), {len(sortie_inter)} Internationales -> {os.path.relpath(SORTIE, RACINE)} "
           f"({os.path.getsize(SORTIE) // 1024} Ko)")
 
 

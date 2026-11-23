@@ -1,5 +1,5 @@
 // Capture d'écran pour contrôler un affichage (Chrome installé, puppeteer-core).
-//   node tests/capture.mjs app <Qid> <sortie.png>    l'application sur une organisation (app/dist, npm run build)
+//   node tests/capture.mjs app <Qid|accueil|comparer/Qa/Qb> <sortie.png>    l'application (app/dist, npm run build)
 //   node tests/capture.mjs arbre <Qid> <sortie.png>  l'arbre interactif, zoomé et centré sur une organisation
 import puppeteer from "puppeteer-core";
 import { preview } from "vite";
@@ -19,9 +19,10 @@ await page.setViewport({ width: 1400, height: 900, deviceScaleFactor: 1.5 });
 let serveur;
 if (vue === "app") {
   serveur = await preview({ root: APP, logLevel: "silent", preview: { port: 4175, strictPort: true } });
-  await page.goto(`${serveur.resolvedUrls.local[0]}#${q}`, { waitUntil: "networkidle0" });
-  await page.waitForSelector(".fiche h1");
-  await page.screenshot({ path: sortie });
+  // q : un identifiant, « accueil », ou « comparer/Q…/Q… »
+  await page.goto(`${serveur.resolvedUrls.local[0]}#${q === "accueil" ? "" : q}`, { waitUntil: "networkidle0" });
+  await page.waitForSelector(".fiche h1, .accueil h2");
+  await page.screenshot({ path: sortie, fullPage: q === "accueil" });
 } else {
   await page.goto(`${pathToFileURL(path.join(RACINE, "arbres", "arbre.html")).href}#${q}`, { waitUntil: "load" });
   // capture de la zone autour de la barre, à l'échelle 1 du SVG
