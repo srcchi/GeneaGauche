@@ -3112,6 +3112,7 @@ def page_html(m, svg):
     cle = [dict(id=c["id"], sigle=c["sigle"], nom=c["nom"], dates=c["dates"], couleur=c["couleur"],
                 succession=c["succession"], scissions=c["scissions"], membres=c["membres"],
                 filles=c["filles"], famille=c["famille"], membres_famille=c["membres_famille"],
+                origine=c["origine"], ids=c["ids"],    # lus par la clé (sans eux : erreur, page sans clics)
                 tags=[m["items"][q]["etiquette"] for q in c["membres"]],
                 tags_famille=[m["items"][q]["etiquette"] for q in c["membres_famille"]]) for c in m["cle"]]
     # Fiches rédigées et noms des organisations (sigle sans l'année d'homonymie, nom complet au survol)

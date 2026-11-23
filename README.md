@@ -88,7 +88,9 @@ hors périmètre, de famille indéterminée ou au périmètre douteux.
 
 Node.js (portable, `%LOCALAPPDATA%\Programs
 odejs`) : `cd app`, `npm install` une fois, puis `npm run dev`
-(serveur local), `npm test` (généalogie et mise en page, sur les vraies données) ou `npm run build`. En ligne,
+(serveur local), `npm test` (généalogie et mise en page, sur les vraies données) ou `npm run build`.
+`npm run test:clics` (après `npm run build`) : tests de clics dans Chrome, piloté par puppeteer-core (aucun
+navigateur téléchargé ; variable `CHROME` pour un autre chemin) : application, arbre interactif et page d'accueil. En ligne,
 le workflow Pages construit l'application et la publie sous `https://srcchi.github.io/GeneaGauche/app/`.
 
 ### Fichiers à remplir à la main (`data/manuel/`, jamais écrasés)
