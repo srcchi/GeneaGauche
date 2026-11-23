@@ -3187,6 +3187,8 @@ HTML = r"""<!doctype html>
   #bulle .fiche sup { font-size:10px; }
   #bulle .fiche sup a { color:var(--doux); text-decoration:none; }
   #bulle .fiche details { margin-top:8px; border-top:1px solid var(--bord); padding-top:6px; }
+  #bulle .fiche .vers-appli { margin:8px 0 0; font-weight:bold; }
+  #bulle .fiche .vers-appli a { color:var(--accent); }
   #bulle .fiche summary { cursor:pointer; color:var(--doux); font-size:12px; }
   #bulle .fiche ol { padding-left:20px; margin:6px 0 0; font-size:12px; }
   #bulle .fiche li { margin:0 0 6px; }
@@ -3203,7 +3205,7 @@ HTML = r"""<!doctype html>
   <label><input type="checkbox" id="cadres" checked> affiliations</label>
   <a class="bascule" href="vue_internationales.html">Basculer : vue par Internationale</a>
   <span class="familles" id="familles" aria-label="Replier une famille"></span>
-  <span class="liens-site"><a href="../index.html">Accueil</a> · <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></span>
+  <span class="liens-site"><a href="../index.html">Accueil</a> · <a href="../app/">Généalogie par organisation</a> · <a href="https://github.com/srcchi/GeneaGauche/issues/new?template=erreur.yml" target="_blank" rel="noopener">Signaler une erreur</a></span>
 </header>
 <main>
   <div id="bulle" role="tooltip"></div>
@@ -3360,6 +3362,8 @@ function fiche(q){
       '<li id="src-' + (i + 1) + '"><q>« ' + echapper(s.citation) + ' »</q>' + (s.url ? '<a class="source" target="_blank" rel="noopener" href="' +
       encodeURI(s.url) + '">' + echapper(s.texte) + '</a>' : '') + '</li>').join('') + '</ol></details>';
   }
+  // Application (app/) : toute la généalogie de l'organisation, petites organisations comprises
+  h += '<p class="vers-appli"><a href="../app/#' + encodeURIComponent(q) + '">Voir sa généalogie complète →</a></p>';
   return h + '<div class="aide">Clic : épingler · Échap : fermer</div></div>';
 }
 function contenu(el){ return (el.classList.contains('org') && fiche(el.dataset.id)) || formater(el.dataset.info); }
