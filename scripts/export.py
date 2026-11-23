@@ -45,6 +45,19 @@ def main():
     with open(os.path.join(sortie, "organisations.csv"), encoding="utf-8") as f:
         douteux = {r["id"]: r["perimetre_douteux"].strip() for r in csv.DictReader(f)}
     ecartees = {q: o["etiquette"] or o["label"] for q, o in orgs.items() if not retenue(o, causes, douteux)}
+    # Ascendance complète (demande de l'utilisateur, 23 novembre 2026 : Les Nouveaux Démocrates, absorbés
+    # par Les Écologistes) : une organisation de famille indéterminée ou au périmètre douteux revient si
+    # un lien de lignée cité la relie à une organisation retenue (POP -> PUP, UCRG -> PS, Gauche
+    # révolutionnaire -> PSOP) ; jamais celles hors périmètre ni refusées à la porte. Une seule passe :
+    # pas de proche en proche à travers des organisations incertaines.
+    lignee = {"renommage", "refondation", "fusion", "scission", "absorption"}
+    retenues = set(orgs) - set(ecartees)
+    rattachees = {x for l in liens if l["rel"] in lignee
+                  for x, y in ((l["a"], l["b"]), (l["b"], l["a"]))
+                  if x in ecartees and y in retenues and causes.get(x) not in {"hors_perimetre", "rejet_porte"}}
+    for q in rattachees:
+        del ecartees[q]
+        orgs[q]["famille_indeterminee"] = orgs[q]["famille"] not in R.FAMILLES
     orgs = {q: o for q, o in orgs.items() if q not in ecartees}
     liens = [l for l in liens if l["a"] in orgs and l["b"] in orgs]
     familles = {k: dict(nom=t, couleur=c) for k, (t, c) in R.FAMILLES.items() if k != R.VOIE_SANS_GEN}
@@ -57,6 +70,7 @@ def main():
             an_fin=o["fin_txt"] or None, actif=o["statut"].startswith("actif"),
             fin_inconnue=o["statut"] == "fin inconnue", approx=bool(o.get("approx")),
             dans_arbre=bool(o.get("dans_arbre")), sans_genealogie=bool(o.get("sans_gen")),
+            famille_indeterminee=bool(o.get("famille_indeterminee")),
             noms=[dict(an=int(t), nom=n) for t, n, _c, _s in o.get("noms", [])],
             phrases=fiche.get("phrases", []), sources=fiche.get("sources", [])))
     sortie_liens = []
@@ -90,7 +104,9 @@ def main():
     with open(SORTIE, "w", encoding="utf-8") as f:
         json.dump(donnees, f, ensure_ascii=False, separators=(",", ":"))
     n_arbre = sum(o["dans_arbre"] for o in sortie_orgs)
-    print(f"{len(ecartees)} écartées (hors périmètre, famille indéterminée, périmètre douteux)")
+    print(f"{len(ecartees)} écartées (hors périmètre, famille indéterminée, périmètre douteux) ; "
+          f"{len(rattachees)} rattachées par un lien de lignée : "
+          + ", ".join(sorted(orgs[q]["etiquette"] or orgs[q]["label"] for q in rattachees)))
     print(f"{len(sortie_orgs)} organisations ({n_arbre} dans l'arbre principal, {len(sortie_orgs) - n_arbre} hors), "
           f"{len(sortie_liens)} liens, {len(sortie_inter)} Internationales -> {os.path.relpath(SORTIE, RACINE)} "
           f"({os.path.getsize(SORTIE) // 1024} Ko)")

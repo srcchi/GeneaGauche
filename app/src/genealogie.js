@@ -29,20 +29,34 @@ export function indexer(donnees) {
   return { orgs, entrants, sortants, aujourdhui: donnees.aujourdhui, styles: donnees.styles_liens };
 }
 
-function parcourir(depart, voisins, bout, garder, profondeur) {
+// Parcours dans le temps : en remontant, on ne suit que des événements antérieurs (ou de la même année) à celui
+// par lequel on est arrivé ; en descendant, que des événements postérieurs. Sinon GU, absorbé par le PCF en
+// 2015, devenait un ancêtre du PSU (1960) et des Écologistes. `sens` : -1 ancêtres, +1 descendants.
+const MARGE_AN = 1;
+
+function parcourir(depart, voisins, bout, garder, profondeur, sens) {
   const gen = new Map();
+  const borne = new Map([[depart, sens < 0 ? Infinity : -Infinity]]);
   let front = [depart];
   for (let g = 1; front.length && g <= profondeur; g++) {
-    const suivant = [];
+    const suivant = new Set();
     for (const q of front) {
+      const b = borne.get(q);
       for (const l of voisins.get(q) || []) {
         const r = l[bout];
-        if (!garder(l) || r === depart || gen.has(r)) continue;
-        gen.set(r, g);
-        suivant.push(r);
+        if (!garder(l) || r === depart) continue;
+        const t = l.t ?? b;
+        if (sens < 0 ? t > b + MARGE_AN : t < b - MARGE_AN) continue;
+        // une borne plus large (un chemin plus récent en remontant) peut ouvrir d'autres liens : on repasse
+        const nouvelle = sens < 0 ? Math.min(b, t) : Math.max(b, t);
+        const ancienne = borne.get(r);
+        if (ancienne !== undefined && (sens < 0 ? nouvelle <= ancienne : nouvelle >= ancienne)) continue;
+        borne.set(r, nouvelle);
+        if (!gen.has(r)) gen.set(r, g);
+        suivant.add(r);
       }
     }
-    front = suivant;
+    front = [...suivant];
   }
   return gen;
 }
@@ -50,8 +64,8 @@ function parcourir(depart, voisins, bout, garder, profondeur) {
 /** Ancêtres (liens entrants, de proche en proche) et descendants (liens sortants) de `id`. */
 export function genealogie(index, id, { secondaires = false, profondeur = Infinity } = {}) {
   const garder = (l) => secondaires || LIGNEE.has(l.rel);
-  const ancetres = parcourir(id, index.entrants, "a", garder, profondeur);
-  const descendants = parcourir(id, index.sortants, "b", garder, profondeur);
+  const ancetres = parcourir(id, index.entrants, "a", garder, profondeur, -1);
+  const descendants = parcourir(id, index.sortants, "b", garder, profondeur, +1);
   const ids = new Set([id, ...ancetres.keys(), ...descendants.keys()]);
   const liens = [];
   for (const q of ids) {

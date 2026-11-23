@@ -569,6 +569,11 @@ def de_nom(nom):
     """« de » avec l'article qui convient : de l'Internationale ouvrière, du Parti de la gauche européenne,
     de la Rencontre internationale…"""
     premier = re.split(r"[\s'’-]", nom.strip(), maxsplit=1)[0].lower()
+    # Nom qui porte déjà son article : « Les Verts mondiaux » -> des Verts mondiaux (pas « de la Les… »)
+    m = re.match(r"(Les|Le|La|L['’])\s*(.+)$", nom.strip())
+    if m:
+        art, reste = m.group(1).lower(), m.group(2)
+        return {"les": "des ", "le": "du ", "la": "de la "}.get(art, "de l'") + reste
     if premier in MASCULINS:
         return "du " + nom
     if re.match(r"[aeiouyéèêàâîôûhAEIOUYÉÈÊÀÂÎÔÛH]", nom):

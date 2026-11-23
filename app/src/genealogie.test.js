@@ -53,3 +53,23 @@ test("la recherche trouve par sigle et par nom, sans accents", () => {
   assert.equal(chercher(donnees.organisations, "lfi")[0]?.sigle, "LFI");
   assert.ok(chercher(donnees.organisations, "ecologistes").some((o) => o.sigle === "Les Écologistes"));
 });
+
+test("Les Écologistes : toute l'ascendance écologiste (Confédération écologiste, VPÉ, Les Nouveaux Démocrates)", () => {
+  const g = genealogie(index, "Q613786");
+  const noms = [...g.ancetres.keys()].map((q) => index.orgs.get(q).nom);
+  for (const attendu of ["Les Verts", "Verts, Parti écologiste", "Les Verts – Confédération écologiste", "Les Nouveaux Démocrates", "Europe Écologie"]) {
+    assert.ok(noms.includes(attendu), `${attendu} manque parmi : ${noms.join(", ")}`);
+  }
+});
+
+test("ascendance dans le temps : GU (absorbé par le PCF en 2015) n'est pas un ancêtre des Écologistes", () => {
+  const g = genealogie(index, "Q613786");
+  assert.ok(!g.ancetres.has(id("GU")), "GU");
+  assert.ok(g.ancetres.has(id("PSU (1960)")), "PSU");
+});
+
+test("descendance dans le temps : le PS descend de la SFIO, mais pas les organisations d'avant 1905", () => {
+  const g = genealogie(index, id("SFIO"));
+  assert.ok(g.descendants.has(id("PS")));
+  assert.ok(!g.descendants.has(id("FTSF")));
+});

@@ -130,6 +130,18 @@ await essai("Ensemble ! : mise en garde contre la coalition macroniste", async (
   verifier(texte.includes("gauche radicale"), "positionnement absent");
 });
 
+await essai("URC (identifiant manuel « fr:… ») : le dégradé de la barre active est bien référencé", async () => {
+  await page.goto(`${base}#${encodeURIComponent("fr:Union pour la reconstruction communiste")}`, { waitUntil: "networkidle0" });
+  await page.waitForSelector("g.barre.choisie");
+  const ok = await page.$eval("g.barre.choisie", (g) => {
+    const r = [...g.querySelectorAll("rect")].find((x) => (x.getAttribute("fill") || "").startsWith("url("));
+    if (!r) return "pas de dégradé";
+    const id = r.getAttribute("fill").slice(5, -1);
+    return document.getElementById(id) ? "ok" : `dégradé ${id} introuvable`;
+  });
+  verifier(ok === "ok", ok);
+});
+
 await essai("organisation inconnue : message, pas de page blanche", async () => {
   await page.goto(`${base}#Q000`, { waitUntil: "networkidle0" });
   await page.waitForSelector(".accueil");
