@@ -93,7 +93,7 @@ Q97015296,Démocrates et…,nom raccourci,Démocrates et progressistes,
 Q109023546,En commun,nom court,En commun,
 Q16632068,Enbata,nom court,Enbata,
 Q3752213,Endavant,nom court,Endavant,
-Q15985232,Ensemble,nom court,Ensemble (parti français),oui
+Q15985232,Ensemble !,sigles.csv,Ensemble (parti français),oui
 Q557045,EE,sigles.csv,Europe Écologie,oui
 Q1125061,EA,article,Eusko Alkartasuna,
 Q3068323,FAC,acronyme du nom,Femu a Corsica,
@@ -212,8 +212,8 @@ Q870667,LO,sigles.csv,Lutte ouvrière,oui
 Q3272709,MGR,acronyme du nom,MARS - Gauche républicaine,oui
 Q6733696,MSP,acronyme du nom,Mahe Socialist Party,
 Q6778654,MLCOOR,acronyme du nom,Marxist–Leninist Communist Organisation of Réunion,
-Q114441157,Maulets (1988),nom court + année (homonyme),Maulets,
 Q940739,Maulets (1999),nom court + année (homonyme),Maulets,
+Q114441157,Maulets (1988),nom court + année (homonyme),Maulets,
 Q3326471,MFC,article,Mouvement Franche-Comté,
 Q3326535,MCFml,sigles.csv,Mouvement communiste français marxiste-léniniste,oui
 Q125846976,MCL,sigles.csv,Mouvement communiste libertaire,
@@ -298,8 +298,8 @@ Q628594,PT (1991),sigles.csv + année (homonyme),"Parti des travailleurs (France
 Q24939885,PT (2023),sigles.csv + année (homonyme),"Parti des travailleurs (France, 2015)",oui
 Q3366460,Parti frontiste,nom court,Parti frontiste,
 Q111187255,Parti lorrain,nom court,Parti lorrain,
-Q3141006,PNB (1931),acronyme du nom + année (homonyme),Parti national breton,
 Q115925919,PNB (2021),acronyme du nom + année (homonyme),Parti national breton,
+Q3141006,PNB (1931),acronyme du nom + année (homonyme),Parti national breton,
 Q111210969,PNSF,acronyme du nom,Parti national-syndicaliste français,
 Q1539236,Parti occitan,nom court,Parti occitan,
 Q135902867,Parti ouvrier,nom court,Parti ouvrier (1914),

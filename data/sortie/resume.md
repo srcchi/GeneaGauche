@@ -40,7 +40,7 @@ Périmètre discutable, gardé mais signalé (colonne perimetre_douteux), à tra
 | Affiliations à une Internationale (affiliations.csv) | 78 |
 | Appartenances à une organisation française : coalition, fédération (appartenances_nationales.csv) | 71 |
 
-Liens par relation : scission (94), renommage (50), fusion (32), absorption (13), composante (8), passage (5), refondation (4), filiation_idéologique (3), indirect (1).
+Liens par relation : scission (94), renommage (49), fusion (33), absorption (13), composante (8), passage (5), refondation (4), filiation_idéologique (3), indirect (1).
 Les liens entre deux organisations fondées la même année (mois inconnus) sont dans anomalies.csv :
 leur longueur sur l'axe du temps serait nulle (règle R1).
 
@@ -52,12 +52,12 @@ Dates : 102 fondations et 40 dissolutions avec un mois (lu dans l'infobox, seule
 Affiliations : toutes en date_certainty = unknown (les sources ne donnent pas la période d'adhésion).
 Période recopiée : durée de vie du parti, bornée par celle de l'Internationale.
 
-Sigles (data/manuel/sigles.csv) : 568 organisations, dont 132 avec un sigle ; 0 ajoutées à cette exécution.
+Sigles (data/manuel/sigles.csv) : 569 organisations, dont 133 avec un sigle ; 0 ajoutées à cette exécution.
 
 ## Liens validés à la main
 - Candidats de la phase 0 acceptés (decision = oui) : 0
   (dont 0 ignorés car leur sens est « à vérifier »).
-- Liens manuels (data/manuel/aretes_manuelles.csv) : 37 ajoutés,
+- Liens manuels (data/manuel/aretes_manuelles.csv) : 38 ajoutés,
   1 ignorés (source, type ou extrémité manquant).
 
 ## Types (data/manuel/types.csv)
@@ -78,5 +78,5 @@ dans la colonne organisations_liees de ce parent.
   Démocrates et progressistes, Féministes révolutionnaires, Gauche révolutionnaire, Union des centristes et des écologistes, groupe socialiste à l'Assemblée nationale.
 
 ## Affiliations
-- 60 affiliations sans dates connues : data/sortie/affiliations_a_dater.csv ;
+- 44 affiliations sans dates connues : data/sortie/affiliations_a_dater.csv ;
   à compléter dans data/manuel/affiliations_dates.csv (source obligatoire).

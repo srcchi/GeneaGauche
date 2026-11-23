@@ -322,7 +322,9 @@ def simplifier(pts):
 # Données
 # ======================================================================
 
-def charger():
+def charger(tous=False):
+    """tous=True (scripts/export.py, application) : aussi les organisations hors de l'arbre principal
+    (garde != oui), si leur fondation est connue ; o["dans_arbre"] dit lesquelles sont dessinées."""
     T_AUJ = aujourdhui()
     etiq = {r["id"]: r["etiquette"] for r in lire("etiquettes.csv")}
     noms_tous = {r["id"]: r["nom_complet"] for r in lire("etiquettes.csv")}
@@ -348,7 +350,7 @@ def charger():
         medias_de[r["org_id"]].append(f"{r['media_nom']} ({r['type_media']}{per}{rel})")
     orgs = {}
     for r in lire("organisations.csv"):
-        if r.get("garde") != "oui":
+        if r.get("garde") != "oui" and not (tous and r["fondation"].strip().isdigit()):
             continue
         statut = r["statut_fin"]
         t0 = t_de(r["fondation"], r["fondation_mois"])
@@ -356,8 +358,10 @@ def charger():
             t1, fin_txt = None, ""
         elif r["dissolution"]:
             t1, fin_txt = t_de(r["dissolution"], r["dissolution_mois"]), r["dissolution"]
-        else:
+        elif r["fin_deduite"]:
             t1, fin_txt = t_de(r["fin_deduite"]), r["fin_deduite"]
+        else:                     # hors de l'arbre seulement (tous=True) : fin inconnue
+            t1, fin_txt, statut = None, "", "fin inconnue"
         fam_c = r["famille_courant"] if r["famille_courant"] in TEINTE else r["famille"]
         couleur = nuance(TEINTE.get(fam_c, "#8C8C8C"), NUANCES.get(r["courant_principal"], 0))
 
@@ -371,6 +375,7 @@ def charger():
         orgs[r["id"]] = dict(id=r["id"], label=r["label"], etiquette=etiq.get(r["id"], r["nom_court"]),
                              voie=r["famille"], famille=r["famille"], couleur=couleur,
                              sans_gen=sans_gen, t0=t0, t1=t1, statut=statut, an0=r["fondation"], mois0=r["fondation_mois"],
+                             dans_arbre=r.get("garde") == "oui",
                              approx=r.get("fondation_approchee") == "oui",
                              fin_txt=fin_txt, affil=[], majeure=statut.startswith("actif") or vie > VIE_MAJEURE,
                              details=[r["label"], f"fondation : {date_longue(r['fondation'], r['fondation_mois'])}",
@@ -601,6 +606,9 @@ def construire_fiches(orgs, liens, inter, composantes, medias_lignes):
     for l in liens:
         par_cible[l["b"]].append(l)
         par_source[l["a"]].append(l)
+    homonymes = defaultdict(list)
+    for r in lire_manuel("homonymes.csv"):
+        homonymes[r["id"]].append(r)
     for q, o in orgs.items():
         sources, phrases = [], []
 
@@ -632,6 +640,16 @@ def construire_fiches(orgs, liens, inter, composantes, medias_lignes):
         fin = ("toujours active" if o["statut"].startswith("actif") else
                f"disparue en {o['fin_txt']}" if o["fin_txt"] else "")
         dire(f"Organisation{' ' + fam if fam else ''} fondée en {fond}" + (f", {fin}" if fin else ""))
+        # Homonymes (data/manuel/homonymes.csv) : Ensemble ! (gauche radicale, 2013-2025) n'est pas la
+        # coalition macroniste Ensemble ; positionnement et mise en garde, chacun avec sa citation
+        for h in homonymes.get(q, []):
+            if h.get("positionnement"):
+                dire(f"Positionnement : {h['positionnement']}",
+                     note(h.get("citation_positionnement", ""), h.get("source_positionnement", "")))
+            if h.get("ne_pas_confondre_avec"):
+                dire(f"À ne pas confondre avec {h['ne_pas_confondre_avec']}, "
+                     + (f"{h['precision']}" if h.get("precision") else "une autre organisation"),
+                     note(h.get("citation", ""), h.get("source", "")))
         # Origines
         entrants = par_cible.get(q, [])
         fusions = [l for l in entrants if l["rel"] == "fusion"]
@@ -749,7 +767,9 @@ def lisible(t):
     for _ in range(3):                                     # modèles imbriqués
         def modele(mm):
             parts = [p_.strip() for p_ in mm.group(1).split("|")]
-            nom, params = parts[0], [p_ for p_ in parts[1:] if "=" not in p_]
+            # paramètres positionnels, y compris numérotés : {{Date|2=novembre|3=2021}} -> novembre 2021
+            nom, params = parts[0], [re.sub(r"^\d+\s*=\s*", "", p_) for p_ in parts[1:]
+                                     if "=" not in p_ or re.match(r"\d+\s*=", p_)]
             if nom == ",":
                 return ","
             if RX_ORDINAL.match(nom):

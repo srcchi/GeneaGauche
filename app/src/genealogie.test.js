@@ -1,0 +1,55 @@
+// Tests de la généalogie et de la mise en page, sur les vraies données (public/graphe.json).
+// Lancer : npm test
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { chercher, genealogie, indexer, placer } from "./genealogie.js";
+
+const donnees = JSON.parse(readFileSync(new URL("../public/graphe.json", import.meta.url), "utf-8"));
+const index = indexer(donnees);
+const id = (sigle) => donnees.organisations.find((o) => o.sigle === sigle)?.id;
+
+test("la SFIO a la FTSF parmi ses ancêtres et le PS parmi ses descendants", () => {
+  const g = genealogie(index, id("SFIO"));
+  assert.ok(g.ancetres.has(id("FTSF")), "FTSF");
+  assert.ok(g.descendants.has(id("PS")), "PS");
+});
+
+test("le PUP descend du PSC", () => {
+  const g = genealogie(index, id("PUP"));
+  assert.ok(g.ancetres.has(id("PSC (1923)")) || g.ancetres.has(id("PSC")));
+});
+
+test("la mise en page : aucune barre ne chevauche une autre sur sa rangée", () => {
+  for (const sigle of ["SFIO", "PCF (1920)", "LCR (1974)", "PS", "Les Verts"]) {
+    const q = id(sigle);
+    if (!q) continue;
+    const m = placer(index, genealogie(index, q, { secondaires: true }));
+    const parRang = new Map();
+    for (const b of m.boites) {
+      if (!parRang.has(b.rang)) parRang.set(b.rang, []);
+      parRang.get(b.rang).push(b);
+    }
+    for (const bs of parRang.values()) {
+      bs.sort((a, b) => a.x0 - b.x0);
+      for (let i = 1; i < bs.length; i++) {
+        assert.ok(bs[i - 1].droite <= bs[i].x0 + 0.01, `${sigle} : ${bs[i - 1].o.sigle} chevauche ${bs[i].o.sigle}`);
+      }
+    }
+  }
+});
+
+test("chaque trait part de sa source, va vers la droite ou verticalement, et finit sur sa cible", () => {
+  const m = placer(index, genealogie(index, id("SFIO"), { secondaires: true }));
+  for (const t of m.traits.filter((t) => !t.continuation)) {
+    for (let i = 1; i < t.pts.length; i++) assert.ok(t.pts[i][0] >= t.pts[i - 1][0] - 1e-6, "x ne décroît pas");
+    const fin = t.pts[t.pts.length - 1];
+    const B = m.boites.find((b) => b.o.id === t.l.b);
+    assert.ok(fin[0] >= B.x0 - 0.5 && fin[0] <= B.x1 + 0.5, `${t.l.a} -> ${t.l.b} : arrivée hors de la cible`);
+  }
+});
+
+test("la recherche trouve par sigle et par nom, sans accents", () => {
+  assert.equal(chercher(donnees.organisations, "lfi")[0]?.sigle, "LFI");
+  assert.ok(chercher(donnees.organisations, "ecologistes").some((o) => o.sigle === "Les Écologistes"));
+});

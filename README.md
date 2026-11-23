@@ -56,6 +56,7 @@ Barlow Condensed, IBM Plex Mono), téléchargées depuis le dépôt github.com/g
 | 4 | `scripts/nettoyage.py` | Sources + fichiers de `data/manuel/` + caches | `data/sortie/*.csv` (dont `elagues.csv`), `criteres.md`, `resume.md`, `data/manuel/types.csv` |
 | 5 | `scripts/rendu.py` | Sortie de `nettoyage.py` | `arbre.svg` (racine), et dans `arbres/` : `arbre.svg`, `arbre.html`, `arbre_<famille>.svg`, `arbre_apercu.svg`, `vue_internationales.svg/.html` |
 | 6 | `scripts/verifier.py` | Les SVG produits et les CSV | rapport complet (R1 à R8, croisements, étiquettes en double, citations introuvables…) ; échoue si un compteur n'est pas à zéro |
+| 7 | `scripts/export.py` | Sortie de `nettoyage.py`, fiches de `rendu.py` | `app/public/graphe.json` : le graphe complet pour l'application (organisations hors de l'arbre principal comprises, liens cités, Internationales, fiches) |
 
 `scripts/preuves.py` (utilisé par les étapes 3 à 6) : chaque lien, affiliation ou succession d'Internationales
 s'appuie sur une citation mot pour mot du wikitexte en cache (règle R8), revérifiée par `verifier.py`.
@@ -73,7 +74,22 @@ python scripts/tableaux.py                              # adhésions lues dans l
 python scripts/medias.py                                # médias des organisations (réseau, mis en cache ; --sans-proches : sans la recherche des médias proches)
 python scripts/nettoyage.py && python scripts/rendu.py && python scripts/verifier.py
 python scripts/arbre_affiche.py                          # affiche A0 portrait : arbres/affiche.svg et affiche.pdf
+python scripts/export.py                                # données de l'application : app/public/graphe.json
 ```
+
+### Application (`app/`, React)
+
+Une organisation choisie (recherche par nom ou sigle) : sa généalogie sur une frise datée, ancêtres et
+descendants de proche en proche, y compris les petites organisations absentes de l'arbre complet (bord en
+tirets), et sa fiche rédigée avec ses sources. Adresse partageable : `app/#Q170972` (`+secondaires` pour les
+passages de militants, adhésions et filiations). Hors de l'arbre principal, l'application garde les
+organisations écartées pour la lisibilité (isolées, sans descendance active, fin à dater), pas celles jugées
+hors périmètre, de famille indéterminée ou au périmètre douteux.
+
+Node.js (portable, `%LOCALAPPDATA%\Programs
+odejs`) : `cd app`, `npm install` une fois, puis `npm run dev`
+(serveur local), `npm test` (généalogie et mise en page, sur les vraies données) ou `npm run build`. En ligne,
+le workflow Pages construit l'application et la publie sous `https://srcchi.github.io/GeneaGauche/app/`.
 
 ### Fichiers à remplir à la main (`data/manuel/`, jamais écrasés)
 

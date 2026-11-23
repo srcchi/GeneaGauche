@@ -1,5 +1,6 @@
-# Publication du site sur GitHub Pages : la page d'accueil (site/) et les arbres déjà produits (arbres/).
-# Rien n'est recalculé ici : on publie ce qui a été généré et committé par la chaîne de traitement.
+# Publication du site sur GitHub Pages : la page d'accueil (site/), les arbres déjà produits (arbres/) et
+# l'application (app/, React), construite ici à partir de app/public/graphe.json (scripts/export.py).
+# Les données ne sont pas recalculées ici : on publie ce qui a été généré et committé par la chaîne.
 # Deux jobs, comme le modèle officiel de GitHub : « construire » envoie l'artefact, « publier » le déploie une
 # fois le premier terminé (dans un seul job, la publication ne trouvait plus l'artefact : « No artifacts named
 # github-pages were found »). En cas d'échec passager : bouton « Re-run jobs » dans l'onglet Actions.
@@ -8,7 +9,7 @@ name: Site GitHub Pages
 on:
   push:
     branches: [main]          # GitHub Pages ne publie que depuis main (règle de l'environnement github-pages)
-    paths: ["site/**", "arbres/**", ".github/workflows/pages.yml"]
+    paths: ["site/**", "arbres/**", "app/**", ".github/workflows/pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -25,12 +26,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - name: Construire l'application (tests compris)
+        working-directory: app
+        run: |
+          npm ci --no-audit --no-fund
+          npm test
+          npm run build
       - name: Assembler le site
         run: |
           mkdir -p _site/arbres
           cp -r site/. _site/
           cp arbres/*.html arbres/*.svg _site/arbres/
           cp arbres/*.pdf _site/arbres/ 2>/dev/null || true
+          mkdir -p _site/app
+          cp -r app/dist/. _site/app/
           ls -la _site _site/arbres
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
