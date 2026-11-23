@@ -395,17 +395,26 @@ def verifier_svg(chemin, cpt, err):
         if g.get("data-majeur") != "oui":
             for attr, seuil in (("data-annees", s_ans), ("data-voies", s_voies), ("data-rangs", s_rangs)):
                 # renommage et absorption : pas de limite en rangées (exception demandée par l'utilisateur)
-                if attr == "data-rangs" and (g.get("data-rel") in ("renommage", "absorption") or g.get("data-suite") == "oui"):
+                if attr == "data-rangs" and (g.get("data-rel") in ("renommage", "absorption") or g.get("data-suite") == "oui"
+                                             or g.get("data-tolere") == "oui"):     # 23 novembre 2026
                     continue
                 if float(g.get(attr)) > seuil:
                     faute("R1", f"{a}->{b} : {attr} {g.get(attr)} au-delà du seuil {seuil:g}")
         if float(g.get("data-voies")) <= 2:
+            # 23 novembre 2026 : un lien « toléré » peut passer derrière une seule barre ou bande
+            tolere = g.get("data-tolere") == "oui"
+            derriere = set()
             for p1, p2 in zip(pts, pts[1:]):
                 for q, sorte, box in obstacles:
                     if a_soi(q, sorte, a, b):
                         continue
                     if croise(p1, p2, box):
-                        faute("croisements", f"{a}->{b} traverse {sorte} de {q}")
+                        if tolere and sorte in ("barre", "bande"):
+                            derriere.add(q)
+                        else:
+                            faute("croisements", f"{a}->{b} traverse {sorte} de {q}")
+            if len(derriere) > 1:
+                faute("croisements", f"{a}->{b} passe derrière {len(derriere)} barres ({', '.join(sorted(derriere))})")
     eteintes = {r["id"] for r in lire("branches_eteintes.csv")} if os.path.exists(os.path.join(SORTIE, "branches_eteintes.csv")) else set()
     # Origines (R5) : la CNT, section de l'AIT de 1922, n'a plus de trait depuis que les Internationales
     # ont quitté les voies (C1) ; son lien est son ruban AIT

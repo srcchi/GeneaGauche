@@ -229,6 +229,30 @@ def formes_courtes(nom):
     return list(dict.fromkeys(x for x in (nom, tete, init if len(init) >= 3 else "") if x))
 
 
+def sigles_possibles(o, seul, pris=()):
+    """Sigles d'une barre, du préféré au plus court : l'étiquette (avec l'année des homonymes), ses formes
+    courtes, et les initiales du nom (« Parti communiste (France, 1919) » : PC (1919))."""
+    an = re.search(r"\b(1[89]\d\d|20\d\d)\b", o["label"])
+    ini = acronyme(re.sub(r"\s*\([^)]*\)", "", o["label"]))
+    if an and an.group(1) in o["label"] and re.search(r"\(", o["label"]):
+        ini = f"{ini} ({an.group(1)})"
+    cands = [seul] + formes_courtes(seul) + ([ini] if 2 <= len(ini) < len(seul) else [])
+    # une forme de repli ne reprend jamais le sigle d'une autre barre (PSdF : initiales PSF, comme le PSF)
+    return list(dict.fromkeys(c for i, c in enumerate(cands) if c and (i == 0 or c not in pris)))
+
+
+def choisir_sigle(sigles, place):
+    """(texte, largeur, marge) : le premier sigle qui tient dans la place, avec la marge normale puis
+    1 px (PSdF, 1902-1905) ; à défaut le plus court, pour l'onglet."""
+    for pad in (TAG_PAD, 1):
+        for c in sigles:
+            w = larg(c, FS_SIGLE, True) + 2 * pad
+            if w <= place:
+                return c, w, pad
+    c = min(sigles, key=lambda c: larg(c, FS_SIGLE, True))
+    return c, larg(c, FS_SIGLE, True) + 2 * TAG_PAD, TAG_PAD
+
+
 def acronyme(nom):
     base = re.sub(r"\s*\([^)]*\)", "", nom)
     res = "-".join("".join(w[0].upper() for w in re.findall(r"[^\W\d_]+", p) if w.lower() not in MOTS_VIDES)
@@ -818,6 +842,7 @@ def preparer(items, inter, ech, T_AUJ):
         m = re.fullmatch(r"(.+) \((\d{4})\)", o["etiquette"])
         return m.group(1) if m and m.group(2) == str(o["an0"]) else o["etiquette"]
     n_base = Counter(base(o) for o in items.values())
+    pris = {x for o in items.values() for x in (o["etiquette"], base(o))}
     for o in items.values():
         o["x0"] = ech.X(o["t0"])
         if o["t1"] is not None:
@@ -844,18 +869,18 @@ def preparer(items, inter, ech, T_AUJ):
         seul = b if n_base.get(b, 1) <= 1 else o["etiquette"]
         seul_w = larg(seul, FS_SIGLE, True) + 2 * TAG_PAD
         place = o["x1"] - o["x0"]
-        if long_w <= place or seul_w > place:
-            # dans la barre avec les dates, ou dehors (dates écrites : elles distinguent les homonymes)
+        # 23 novembre 2026 (demande de l'utilisateur) : la barre porte son nom en priorité. Sigle et dates
+        # s'ils tiennent ; sinon le sigle seul (dates en infobulle), au besoin une forme plus courte ;
+        # l'onglet au-dessus de la barre en dernier recours, sans les dates : un titre plus large que la
+        # barre faisait croire à une organisation plus durable qu'elle ne l'a été.
+        o["sigles"] = sigles_possibles(o, seul, pris - {seul, b, o["etiquette"]})
+        o["tag_pad"] = TAG_PAD
+        if long_w <= place:
             o["etiq_aff"], o["avec_dates"], o["tag_w"] = b, True, long_w
         else:
-            o["etiq_aff"], o["avec_dates"], o["tag_w"] = seul, False, seul_w    # sigle seul, dates en infobulle
+            o["etiq_aff"], o["tag_w"], o["tag_pad"] = choisir_sigle(o["sigles"], place)
+            o["avec_dates"] = False
         o["tag_dedans"] = o["tag_w"] <= place       # 2.6 : dans la barre si elle est assez longue
-        o["tag_pad"] = TAG_PAD
-        if not o["tag_dedans"] and larg(seul, FS_SIGLE, True) + 2 <= place:
-            # Addendum 5, A1 : le sigle seul tient avec 1 px de marge (PSdF, 1902-1905) : dans la barre,
-            # pas en onglet, qui gênerait le départ de ses liens
-            o["etiq_aff"], o["avec_dates"], o["tag_w"] = seul, False, larg(seul, FS_SIGLE, True) + 2
-            o["tag_dedans"], o["tag_pad"] = True, 1
         # Dernier nom d'une organisation active qui ne tient pas dans son segment (Les Écologistes,
         # 2023) : onglet collé au-dessus de la barre, à la date du changement (addendum 5, A2)
         if o.get("noms") and o["t1"] is None and len(o["noms"]) > 1:
@@ -1158,16 +1183,26 @@ def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
         if not a["tag_dedans"]:
             continue
         # Le texte avance par-delà chaque losange qu'il couvrirait (FTSF : 1879, puis 1882) ; une fusion
-        # ou un renommage, sans marque, part du bord de la barre et ne le gêne pas (PSdF -> SFIO)
-        xt = a["x0"]
-        while True:
-            genants = [x for x in marques_de.get(q, []) if xt - 5 <= x <= xt + a["tag_w"] + 5]
-            if not genants:
-                break
-            xt = max(genants) + 6
-        if xt + a["tag_w"] <= a["x1"]:
-            a["tag_decal"] = xt - a["x0"]
+        # ou un renommage, sans marque, part du bord de la barre et ne le gêne pas (PSdF -> SFIO).
+        # Intervalles libres entre les losanges, du début à la fin : le texte complet dans le premier où il
+        # tient, sinon le sigle seul dans le premier où il tient (POSR avant son losange de 1896), sinon
+        # l'onglet avec le sigle le plus court.
+        bornes_l = [a["x0"]] + [x for m_ in sorted(marques_de.get(q, [])) for x in (m_ - 5, m_ + 6)] + [a["x1"]]
+        libres = [(g, d) for g, d in zip(bornes_l[0::2], bornes_l[1::2]) if d > g]
+        place_txt = next(((g, d) for g, d in libres if d - g >= a["tag_w"]), None)
+        if place_txt:
+            a["tag_decal"] = place_txt[0] - a["x0"]
+        elif a.get("sigles") and any(d - g >= larg(choisir_sigle(a["sigles"], d - g)[0], FS_SIGLE, True) + 2
+                                     for g, d in libres):
+            # avec les dates, le texte ne tient nulle part entre les losanges : le sigle seul, ou plus court
+            g, d = next((g, d) for g, d in libres
+                        if d - g >= larg(choisir_sigle(a["sigles"], d - g)[0], FS_SIGLE, True) + 2)
+            a["etiq_aff"], a["tag_w"], a["tag_pad"] = choisir_sigle(a["sigles"], d - g)
+            a["avec_dates"], a["tag_decal"] = False, g - a["x0"]
         else:
+            if a.get("sigles"):           # onglet : le sigle le plus court, sans les dates
+                a["etiq_aff"], a["tag_w"], a["tag_pad"] = choisir_sigle(a["sigles"], 0)
+                a["avec_dates"] = False
             a["tag_dedans"] = False
 
     # Continuation (2.4) : renommage dans la même voie, le successeur commence où finit le prédécesseur.
@@ -1304,6 +1339,7 @@ def mise_en_page(orgs, liens, inter, T_AUJ, voies_voulues=None, titre=""):
     if not voies_voulues:
         poly, renvois, geo, traces = suites_finales(items, orgs, voies_ordre, rangees, poly, renvois, geo, traces,
                                                     continuations, ech, rang_voie, liens)
+    poly, renvois, traces = tolerer(items, orgs, poly, renvois, rang_voie)
     cle = cle_donnees(items, inter)
     largeur = max([o["R"] for o in items.values()] + [ech.X(ech.T1)]) + 40
     return dict(items=items, traces=traces, renvois=renvois, continuations=continuations, ech=ech, T_AUJ=T_AUJ,
@@ -1970,6 +2006,8 @@ def boites_obstacles(items):
                 boites.append((o["id"], "renvoi", (o["renv_x"], ys, o["w_renv"], 13)))
             continue
         boites.append((o["id"], "barre", (o["x0"], yb, o["x1_vis"] - o["x0"], BAR_H)))
+        if o.get("tag_dedans") and not o.get("sans_tag"):
+            boites.append((o["id"], "etiquette dedans", (o["x0"], yb, o["tag_w"], BAR_H)))
         if o.get("onglet"):
             boites.append((o["id"], "etiquette", (o["x0"], yb - ONGLET_H, o["tag_w"], ONGLET_H)))
         if o.get("nom_apres_x"):
@@ -1998,15 +2036,140 @@ def a_soi(q, sorte, *bouts):
     return sorte in ("barre", "bande") and (q in bouts or SECTION_DE.get(q) in bouts)
 
 
-def croisements(pts, a, b, boites):
-    n = 0
+def traverses(pts, a, b, boites):
+    """Ce que le tracé traverse, segment par segment : (organisation, sorte, boîte)."""
+    res = []
     for p1, p2 in zip(pts, pts[1:]):
         for q, sorte, box in boites:
-            if a_soi(q, sorte, a, b):
+            if a_soi(q, sorte, a, b) or (sorte == "etiquette dedans" and q in (a, b)):
                 continue          # un lien part de sa barre (et de ses bandes) et arrive sur sa cible
             if croise(p1, p2, box):
+                res.append((q, sorte, box))
+    return res
+
+
+def croisements(pts, a, b, boites):
+    # l'étiquette dans une barre est déjà comptée avec la barre ; elle ne sert qu'à la tolérance
+    return sum(1 for x in traverses(pts, a, b, boites) if x[1] != "etiquette dedans")
+
+
+# 23 novembre 2026 (demande de l'utilisateur) : un lien resté en renvoi est dessiné s'il ne passe derrière
+# qu'une seule barre, ou ne croise qu'un seul autre lien ; jamais sur un texte (étiquette, renvoi, sigle)
+TOLERANCE = 1
+DEBUG_TOL = []        # raisons des refus de tolerer(), pour le diagnostic
+SORTES_DERRIERE = ("barre", "bande")
+
+
+def liens_croises(p, q):
+    """Croisements francs entre deux tracés orthogonaux (les segments parallèles ne comptent pas)."""
+    n = 0
+    for a1, a2 in zip(p, p[1:]):
+        for b1, b2 in zip(q, q[1:]):
+            ha, hb = abs(a1[1] - a2[1]) < 1e-6, abs(b1[1] - b2[1]) < 1e-6
+            if ha == hb:
+                continue
+            h1, h2, v1, v2 = (a1, a2, b1, b2) if ha else (b1, b2, a1, a2)
+            g, d = sorted((h1[0], h2[0]))
+            hi, lo = sorted((v1[1], v2[1]))
+            if g + 0.5 < v1[0] < d - 0.5 and hi + 0.5 < h1[1] < lo - 0.5:
                 n += 1
     return n
+
+
+def tolerer(items, orgs, poly, renvois, rang_voie):
+    """Dernière passe : chaque renvoi « trop long ou croisement » est essayé comme trait, du plus court au
+    plus long, avec la tolérance ci-dessus et sans limite de rangées (« quand elles peuvent être
+    représentées, elles doivent l'être »). Un essai n'est gardé que si aucun lien déjà tracé n'empire.
+    On recommence tant qu'un renvoi devient trait : chaque renvoi effacé libère de la place."""
+    def textes(t):
+        return [x for x in t["traverses"] if x[1] not in SORTES_DERRIERE]
+
+    def serres():
+        par_rang = defaultdict(list)
+        for o in items.values():
+            par_rang[o["rang_g"]].append(o)
+        serres = set()
+        for os_ in par_rang.values():
+            os_.sort(key=lambda o: o["x0"])
+            serres |= {(u["id"], v["id"]) for u, v in zip(os_, os_[1:]) if u["R"] > v["L"] + 1e-6}
+        return serres
+
+    def appliquer(pl, rv):
+        """Renvois et emprises (couloir d'arrivée) ; faux si deux barres d'une rangée se chevauchent
+        alors qu'elles ne se chevauchaient pas avant (les continuations se touchent déjà)."""
+        renvoyer(items, orgs, rv)
+        bornes(items, pl)
+        return serres() <= deja_serres
+
+    def router_tout(pl):
+        boites = boites_obstacles(items)
+        return [router(x, items, boites, rang_voie, pl) for x in pl]
+
+    def essai(groupe):
+        """Les renvois du groupe deviennent des traits ensemble ; None si refusé."""
+        nouveaux = [dict({k: v for k, v in r.items() if k != "raison"}, majeur=False, tolere=True) for r in groupe]
+        poly2 = poly + nouveaux
+        renv2 = [x for x in renvois if not any(x is r for r in groupe)]
+        if not appliquer(poly2, renv2):
+            DEBUG_TOL.append((groupe[0]["a"], groupe[0]["b"], "chevauchement", serres() - deja_serres))
+            return None
+        tr2 = router_tout(poly2)
+        n0 = len(poly)
+        for t in tr2[n0:]:
+            if t is None or textes(t) or t["annees"] > SEUIL_ANNEES:
+                DEBUG_TOL.append((groupe[0]["a"], groupe[0]["b"], "texte", textes(t) if t else None))
+                return None
+            # derrière une barre, seulement en la traversant (segment vertical) : un trait qui la longe
+            # disparaît sous elle, flèche comprise (POSR -> PSF le long de la FTSF)
+            if any(croise(p1, p2, bx) for _, so, bx in t["traverses"] if so == "barre"
+                   for p1, p2 in zip(t["pts"], t["pts"][1:]) if abs(p1[1] - p2[1]) < 1e-6):
+                DEBUG_TOL.append((t["a"], t["b"], "longe une barre", None))
+                return None
+            autres = sum(liens_croises(t["pts"], u["pts"]) for u in tr2 if u is not None and u is not t)
+            if len({x[0] for x in t["traverses"]}) + autres > TOLERANCE:
+                DEBUG_TOL.append((t["a"], t["b"], "obstacles", ({x[0] for x in t["traverses"]}, autres)))
+                return None
+        for avant, apres in zip(actuels, tr2):
+            if avant is None:
+                continue
+            ok = apres is not None and len(textes(apres)) <= len(textes(avant)) and (
+                len(apres["traverses"]) <= len(avant["traverses"])
+                or (apres.get("tolere") and len({x[0] for x in apres["traverses"]}) <= TOLERANCE))
+            if not ok:
+                DEBUG_TOL.append((groupe[0]["a"], groupe[0]["b"], "empire",
+                                  (avant["a"], avant["b"], apres and apres["traverses"])))
+                return None
+        return poly2, renv2, tr2
+
+    renvoyer(items, orgs, renvois)
+    bornes(items, poly)
+    deja_serres = serres()
+    actuels = router_tout(poly)
+    progres = True
+    while progres:
+        progres = False
+        cands = [r for r in renvois if r["a"] in items and r["b"] in items
+                 and r.get("raison") == "trop long ou croisement"
+                 and abs(rang_voie[items[r["a"]]["voie"]] - rang_voie[items[r["b"]]["voie"]]) <= SEUIL_VOIES]
+        cands.sort(key=lambda r: abs(items[r["a"]]["rang_g"] - items[r["b"]]["rang_g"]))
+        # un renvoi seul, puis tous ceux d'une même barre ensemble (le bloc de texte devant la SFIO
+        # ne disparaît que si tous ses renvois deviennent des traits)
+        # (sous-groupes aussi, du plus grand au plus petit : un renvoi de moins peut défaire le « voir aussi »
+        # et écrire les autres en entier, plus larges)
+        groupes = [[r] for r in cands]
+        for q in dict.fromkeys(x for r in cands for x in (r["a"], r["b"])):
+            g = [r for r in cands if q in (r["a"], r["b"])][:4]
+            for k in range(len(g), 1, -1):
+                groupes += [list(c) for c in itertools.combinations(g, k)]
+        for g in groupes:
+            res = essai(g)
+            if res:
+                poly, renvois, actuels = res
+                progres = True
+                break
+            appliquer(poly, renvois)
+    appliquer(poly, renvois)
+    return poly, renvois, [t for t in actuels if t]
 
 
 def router(l, items, boites, rang_voie, poly):
@@ -2088,7 +2251,7 @@ def router(l, items, boites, rang_voie, poly):
             h, bb = sorted((y1, y2))
             bloque = sorted((bx - 1, bx + bw + 1) for q, sorte, (bx, by, bw, bh) in boites
                             if by < bb and by + bh > h and bx + bw > x_lo and bx < x_hi
-                            and not a_soi(q, sorte, l["a"]))
+                            and not a_soi(q, sorte, l["a"]) and sorte != "etiquette dedans")
             res, cur = [], x_lo
             for g, d in bloque:
                 if g > cur + 2:
@@ -2117,6 +2280,16 @@ def router(l, items, boites, rang_voie, poly):
             xd = a["x1"] - 1
             for xc in points(libres(y_ga, y_gb, xd, xv))[:8]:
                 candidats.append([(xd, y_bord), (xd, y_ga), (xc, y_ga), (xc, y_gb), (xv, y_gb), (xv, yt), (xt, yt)])
+    # Cible qui continue une autre barre sur sa rangée (PSF après la FTSF) : on ne peut l'atteindre par la
+    # gauche qu'en longeant le prédécesseur. Arrivée par le bord, comme une absorption : le trait rejoint
+    # le bord de la barre juste avant son début, la flèche se pose sur le début de la cible.
+    if a["rang_y"] != b["rang_y"] and any(o is not b and o["rang_g"] == b["rang_g"] and abs(o["x1"] - b["x0"]) < 2
+                                          for o in items.values()):
+        xt_b = b["x0"] + 4
+        xs_b = xt_b - 12
+        if a["x0"] + 3 <= xs_b <= a["x1"] - 2:
+            y_arr = b["y_c"] - BAR_H / 2 - 1 if bas else b["y_c"] + b["bas"] + 1
+            candidats.append([(xs_b, y_bord), (xs_b, y_arr), (xt_b, y_arr)])
     meilleur = None
     for pts in candidats:
         pts = simplifier(pts)
@@ -2126,7 +2299,8 @@ def router(l, items, boites, rang_voie, poly):
             continue
         t = trace(l, a, b, pts, (pts[0][0], a["y_c"] + (a["strip_haut"] + BANDE_H / 2 if a.get("style_intl") else 0)),
                   boites, rang_voie)
-        cle = (t["croisements"], len(pts), sum(abs(q[0] - p[0]) + abs(q[1] - p[1]) for p, q in zip(pts, pts[1:])))
+        cle = (t["croisements"], t["textes"], len(pts),
+               sum(abs(q[0] - p[0]) + abs(q[1] - p[1]) for p, q in zip(pts, pts[1:])))
         if meilleur is None or cle < meilleur[0]:
             meilleur = (cle, t)
     return meilleur[1] if meilleur else None
@@ -2134,9 +2308,11 @@ def router(l, items, boites, rang_voie, poly):
 
 def trace(l, a, b, pts, depart, boites, rang_voie):
     vp = [a["voie"] if i < len(pts) - 2 else b["voie"] for i in range(len(pts))]
+    tv = traverses(pts, l["a"], l["b"], boites)
     return dict(l, pts=pts, voies_pts=vp, depart=depart, annees=(pts[-1][0] - pts[0][0]) / PPA,
                 voies=abs(rang_voie[a["voie"]] - rang_voie[b["voie"]]), rangs=abs(a["rang_g"] - b["rang_g"]),
-                croisements=croisements(pts, l["a"], l["b"], boites))
+                croisements=sum(1 for x in tv if x[1] != "etiquette dedans"), traverses=tv,
+                textes=sum(1 for x in tv if x[1] not in SORTES_DERRIERE))
 
 
 def cle_donnees(items, inter):
@@ -2531,7 +2707,8 @@ def dessiner(m, avec_cle=True, apercu=False):
         g = [f'<g class="lien" data-a="{esc(t["a"])}" data-b="{esc(t["b"])}" data-rel="{t["rel"]}" '
              f'data-annees="{t["annees"]:.2f}" data-voies="{t["voies"]}" data-rangs="{t["rangs"]}" '
              f'data-majeur="{"oui" if t["majeur"] else ""}" data-suite="{"oui" if est_suite(t) else ""}" '
-             f'data-va="{va}" data-vb="{vb}"><title>{esc(infob)}</title>',
+             f'data-va="{va}" data-vb="{vb}" data-tolere="{"oui" if t.get("tolere") else ""}">'
+             f'<title>{esc(infob)}</title>',
              f'<path class="halo geo" d="{d}" data-geo=\'{geo}\' fill="none" stroke="#FFFFFF" stroke-width="{st["w"] + 2.5:.1f}" stroke-opacity="0.85"/>',
              f'<path class="trait geo" d="{d}" data-geo=\'{geo}\' fill="none" stroke="{st["couleur"]}" stroke-width="{st["w"]}"'
              + (f' stroke-dasharray="{st["dash"]}"' if st["dash"] else "") + "/>",
@@ -2584,6 +2761,20 @@ def dessiner(m, avec_cle=True, apercu=False):
     for g in m["voies"]:
         corps += f'<g class="contenu-voie" data-voie="{g["i"]}">' + "".join(bas_v[g["i"]]) + "</g>"
     corps += f'<g class="liens">{"".join(liens_svg)}</g>'
+    for t in m["traces"]:
+        for q, sorte, (bx, by, bw, bh) in (t.get("traverses") or []) if t.get("tolere") else []:
+            if sorte != "barre":
+                continue
+            for (xa, ya), (xb, yb) in zip(t["pts"], t["pts"][1:]):
+                if not croise((xa, ya), (xb, yb), (bx, by, bw, bh)):
+                    continue
+                if abs(xa - xb) < 1e-6:
+                    r_ = (xa - 3, by, 6, bh)
+                else:
+                    g_, d_ = sorted((xa, xb))
+                    r_ = (max(g_, bx), ya - 3, min(d_, bx + bw) - max(g_, bx), 6)
+                corps += (f'<rect class="cache-lien" data-org="{esc(q)}" x="{r_[0]:.2f}" y="{r_[1]:.2f}" '
+                          f'width="{r_[2]:.2f}" height="{r_[3]:.2f}" fill="{items[q]["couleur"]}" pointer-events="none"/>')
     for g in m["voies"]:
         corps += f'<g class="contenu-voie" data-voie="{g["i"]}">' + "".join(haut_v[g["i"]]) + "</g>"
     if avec_cle and not apercu:
@@ -3246,4 +3437,10 @@ def main():
 
 
 if __name__ == "__main__":
+    # Rendu reproductible : l'ordre des ensembles (hachage des chaînes) influe sur le placement ; sans
+    # graine fixe, deux lancements donnaient des arbres différents (81 ou 82 liens)
+    if os.environ.get("PYTHONHASHSEED") != "0":
+        import subprocess
+        import sys
+        sys.exit(subprocess.call([sys.executable] + sys.argv, env=dict(os.environ, PYTHONHASHSEED="0")))
     main()
