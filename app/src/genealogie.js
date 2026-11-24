@@ -4,6 +4,9 @@
 // Liens de lignée : ceux qui font l'arbre. Les autres (passage de militants, composante, filiation
 // idéologique, lien indirect) sont « secondaires » : affichés seulement si on le demande.
 export const LIGNEE = new Set(["renommage", "refondation", "fusion", "scission", "absorption"]);
+// Jamais dessinés (demande de l'utilisateur, 24 novembre 2026 : simplifier l'affichage) : les passages de
+// militants et l'entrisme ; l'entrisme a son propre scénario (#entrisme)
+export const JAMAIS = new Set(["passage", "entrisme"]);
 
 export const BARRE_H = 18;
 export const RANG_H = 40; // une ligne pour le titre au-dessus si la barre est trop courte, puis la barre
@@ -63,7 +66,7 @@ function parcourir(depart, voisins, bout, garder, profondeur, sens) {
 
 /** Ancêtres (liens entrants, de proche en proche) et descendants (liens sortants) de `id`. */
 export function genealogie(index, id, { secondaires = false, profondeur = Infinity, relations = LIGNEE } = {}) {
-  const garder = (l) => secondaires || relations.has(l.rel);
+  const garder = (l) => !JAMAIS.has(l.rel) && (secondaires || relations.has(l.rel));
   const ancetres = parcourir(id, index.entrants, "a", garder, profondeur, -1);
   const descendants = parcourir(id, index.sortants, "b", garder, profondeur, +1);
   const ids = new Set([id, ...ancetres.keys(), ...descendants.keys()]);
@@ -247,11 +250,11 @@ export function chercher(organisations, texte, max = 12) {
 // le PSC, issu du PCF, devient le PUP, absorbé par la SFIO en 1937 ; le PCF serait ancêtre de la SFIO.
 const PRINCIPALE = new Set(["renommage", "refondation", "fusion", "scission"]);
 // En dernier recours : passages de militants, composantes, entrisme validé (demande de l'utilisateur)
-const TOUTES = new Set([...LIGNEE, "passage", "composante", "entrisme", "indirect"]);
+const TOUTES = new Set([...LIGNEE, "composante", "indirect"]);
 export const MODES_COMPARAISON = {
   principale: "par la lignée (scissions, fusions, renommages)",
   absorption: "en comptant les absorptions",
-  secondaires: "en comptant les passages de militants, les composantes et l'entrisme",
+  secondaires: "en comptant les composantes (membres d'une organisation)",
 };
 
 /**
@@ -277,7 +280,7 @@ export function comparer(index, a, b, { secondaires = false } = {}) {
     for (const x of [...lignesA, ...lignesB]) {
       if (proches.some((p) => desc.get(p).has(x))) ids.add(x);
     }
-    const garder = (l) => (secondaires ? true : relations.has(l.rel));
+    const garder = (l) => !JAMAIS.has(l.rel) && (secondaires || relations.has(l.rel));
     const liens = [];
     for (const q of ids) {
       for (const l of index.sortants.get(q) || []) if (ids.has(l.b) && garder(l)) liens.push(l);

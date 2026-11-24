@@ -196,6 +196,16 @@ await essai("accueil : une organisation active, puis « au hasard »", async () 
   await page.waitForSelector(".fiche h1");
 });
 
+await essai("scénario Entrisme : depuis l'accueil, Révolution dans le PCF, clic vers la fiche du parti visé", async () => {
+  await page.goto(base, { waitUntil: "networkidle0" });
+  await page.click('a[href="#entrisme"]');
+  await page.waitForFunction(() => document.querySelector(".fiche h1")?.textContent === "Les cas documentés");
+  const liste = await page.$eval(".fiche", (f) => f.textContent);
+  verifier(liste.includes("Révolution") && liste.includes("2001–2016"), "Révolution dans le PCF absente");
+  await page.click(".cas-entrisme rect");
+  await page.waitForFunction(() => /^#Q|^#fr/.test(location.hash) && document.querySelector(".fiche h1")?.textContent !== "Les cas documentés");
+});
+
 await essai("organisation inconnue : message, pas de page blanche", async () => {
   await page.goto(`${base}#Q000`, { waitUntil: "networkidle0" });
   await page.waitForSelector(".accueil");

@@ -5,10 +5,10 @@
 |---|---|
 | Wikidata (noeuds.csv) | 1025 |
 | Wikipédia (wp_noeuds.csv) | 524 |
-| Après fusion par identifiant (+ corrections) | 1380 |
+| Après fusion par identifiant (+ corrections) | 1383 |
 | **Graphe : organisations de gauche françaises datées** (organisations.csv) | **388** |
-| Graphe, sans date de fondation (sans_date.csv) | 58 |
-| Internationales et fédérations européennes gardées (internationales.csv) | 46 |
+| Graphe, sans date de fondation (sans_date.csv) | 59 |
+| Internationales et fédérations européennes gardées (internationales.csv) | 48 |
 | Exclues (perimetre_exclu.csv) | 816 |
 | dont étrangères en voie externe | 9 |
 
@@ -31,13 +31,13 @@ Périmètre discutable, gardé mais signalé (colonne perimetre_douteux), à tra
 | Après fusion par (ancêtre, descendant) | 981 |
 | Corrections manuelles : ajouts / suppressions | 7 / 0 |
 | Paires réciproques fusionnées (aretes_reciproques.csv) | 13 |
-| Après fusion des réciproques | 1070, dont 713 de lignée |
+| Après fusion des réciproques | 1072, dont 714 de lignée |
 | Hors périmètre : une extrémité exclue ou étrangère (liens_hors_perimetre.csv) | 659 |
 | Anomalies R1 et lignée parti / Internationale (anomalies.csv) | 7 |
 | Extrémité sans date, non dessinables (liens_date_manquante.csv) | 26 |
 | Filiations redondantes retirées par réduction transitive (reduction_transitive.csv) | 2 |
 | **Liens du graphe (liens.csv)** | **211** |
-| Affiliations à une Internationale (affiliations.csv) | 78 |
+| Affiliations à une Internationale (affiliations.csv) | 79 |
 | Appartenances à une organisation française : coalition, fédération (appartenances_nationales.csv) | 71 |
 
 Liens par relation : scission (94), renommage (49), fusion (34), absorption (13), composante (8), passage (5), refondation (4), filiation_idéologique (3), indirect (1).
@@ -52,17 +52,17 @@ Dates : 102 fondations et 40 dissolutions avec un mois (lu dans l'infobox, seule
 Affiliations : toutes en date_certainty = unknown (les sources ne donnent pas la période d'adhésion).
 Période recopiée : durée de vie du parti, bornée par celle de l'Internationale.
 
-Sigles (data/manuel/sigles.csv) : 570 organisations, dont 133 avec un sigle ; 0 ajoutées à cette exécution.
+Sigles (data/manuel/sigles.csv) : 571 organisations, dont 133 avec un sigle ; 1 ajoutées à cette exécution.
 
 ## Liens validés à la main
 - Candidats de la phase 0 acceptés (decision = oui) : 0
   (dont 0 ignorés car leur sens est « à vérifier »).
-- Liens manuels (data/manuel/aretes_manuelles.csv) : 39 ajoutés,
+- Liens manuels (data/manuel/aretes_manuelles.csv) : 41 ajoutés,
   1 ignorés (source, type ou extrémité manquant).
 
 ## Types (data/manuel/types.csv)
-parti 424, coalition 34, satellite 38, internationale 75, fondatrice 22, étrangère 181.
-3 types saisis à la main, 0 lignes ajoutées au fichier.
+parti 425, coalition 34, satellite 38, internationale 77, fondatrice 22, étrangère 181.
+5 types saisis à la main, 1 lignes ajoutées au fichier.
 Coalitions et satellites ne sont jamais des boîtes ; un satellite rattaché à un parent apparaît
 dans la colonne organisations_liees de ce parent.
 
@@ -73,10 +73,10 @@ dans la colonne organisations_liees de ce parent.
 ## Élagage strict (R5)
 - **Gardées : 118 organisations** (actives ayant un lien de lignée, et leurs ancêtres),
   dont 0 sans date.
-- Élaguées (data/sortie/elagues.csv), par cause : etrangere 181, a_dater 164, hors_perimetre 66, isolee 49, satellite 38, coalition 34, famille_non_determinee 22, non_ancetre_d_une_active 22, arbre_sans_organisation_active 3, rejet_porte 2.
+- Élaguées (data/sortie/elagues.csv), par cause : etrangere 181, a_dater 165, hors_perimetre 66, isolee 49, satellite 38, coalition 34, famille_non_determinee 22, non_ancetre_d_une_active 22, arbre_sans_organisation_active 3, rejet_porte 2.
 - **Actives élaguées faute de lien (5)**, à relier à la main puis relancer :
   Démocrates et progressistes, Féministes révolutionnaires, Gauche révolutionnaire, Union des centristes et des écologistes, groupe socialiste à l'Assemblée nationale.
 
 ## Affiliations
-- 44 affiliations sans dates connues : data/sortie/affiliations_a_dater.csv ;
+- 45 affiliations sans dates connues : data/sortie/affiliations_a_dater.csv ;
   à compléter dans data/manuel/affiliations_dates.csv (source obligatoire).

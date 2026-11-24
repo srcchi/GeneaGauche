@@ -13,9 +13,10 @@ compte). Le sens (qui entre, et dans quelle organisation) est deviné : « dans 
 [[X]] » désigne l'organisation d'accueil ; il est à vérifier.
 
 Produit : data/manuel/entrisme.csv (créé une fois, puis seules les nouvelles paires sont ajoutées).
-Colonnes : entriste_id, entriste, hote_id, hote, annee, sens (deviné ou à préciser), citation (mot pour
-mot), source, decision. decision = oui : le lien « entrisme » apparaît dans l'application (scripts/export.py),
-avec sa citation ; non : ignoré ; vide : à décider.
+Colonnes : entriste_id, entriste, hote_id, hote, annee (début), fin, nature (entrisme ; soutien : appui
+public sans y entrer, comme Révolution et La France insoumise depuis 2016), sens (deviné ou à préciser),
+citation (mot pour mot), source (article Wikipédia ou adresse web), decision, note. decision = oui : l'entrisme apparaît dans le scénario « Entrisme » de l'application et dans les fiches
+(scripts/export.py), avec sa citation ; non : ignoré ; vide : à décider.
 """
 import csv
 import os
@@ -29,13 +30,14 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SORTIE = os.path.join(RACINE, "data", "sortie")
 MANUEL = os.path.join(RACINE, "data", "manuel")
 ARTICLES_GENERAUX = ["Entrisme", "Trotskisme en France", "Courant lambertiste"]
-RX_ENTRISME = re.compile(r"entris|noyaut|infiltr", re.I)
+RX_ENTRISME = re.compile(r"\b(?:entris|noyaut|infiltr)", re.I)   # \b : pas « centriste »
 RX_LIEN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]|]*)?(?:\|[^\]]*)?\]\]")
 # juste avant le lien : l'organisation d'accueil
 RX_ACCUEIL = re.compile(r"(?:dans|au sein d[eu]|au sein de la|au sein de l'|rejoindre|rejoint|intégrer|intègrent|"
                         r"infiltr\w*|adhérer à|à l'intérieur d[eu])\s*(?:l[ea]\s|l'|les\s)?$", re.I)
 RX_ANNEE = re.compile(r"\b(1[89]\d\d|20[0-2]\d)\b")
-ENTETES = ["entriste_id", "entriste", "hote_id", "hote", "annee", "sens", "citation", "source", "decision"]
+ENTETES = ["entriste_id", "entriste", "hote_id", "hote", "annee", "fin", "nature", "sens", "citation", "source",
+           "decision", "note"]
 
 
 def textes_generaux():
@@ -81,8 +83,8 @@ def main():
                 if (e, h) in vus:
                     continue
                 vus.add((e, h))
-                trouvees.append([e, orgs[e]["label"], h, orgs[h]["label"], an.group(1) if an else "", sens,
-                                 phrase.strip(), f"fr:{titre}", ""])
+                trouvees.append([e, orgs[e]["label"], h, orgs[h]["label"], an.group(1) if an else "", "", "entrisme",
+                                 sens, phrase.strip(), f"fr:{titre}", "", ""])
     chemin = os.path.join(MANUEL, "entrisme.csv")
     existants = set()
     if os.path.exists(chemin):

@@ -20,6 +20,7 @@ const COMPARAISONS = [["LFI", "PS"], ["PCF (1920)", "PSOP"], ["Les Écologistes"
 // Adresses partageables : #Q170972 (et « +secondaires ») ; #comparer/Q…/Q…
 function lireAdresse() {
   const h = decodeURIComponent(window.location.hash.replace(/^#/, ""));
+  if (h === "entrisme") return { mode: "entrisme", secondaires: false };
   if (h.startsWith("comparer/")) {
     const [, a, b] = h.split("/");
     return { mode: "comparer", a: a || null, b: b || null, secondaires: false };
@@ -81,7 +82,9 @@ export default function App() {
           <a href={SIGNALER} target="_blank" rel="noopener">Signaler une erreur</a>
         </nav>
       </header>
-      {adresse.mode === "comparer" ? (
+      {adresse.mode === "entrisme" ? (
+        <Entrisme index={index} donnees={donnees} aller={aller} />
+      ) : adresse.mode === "comparer" ? (
         <Comparaison index={index} donnees={donnees} a={adresse.a} b={adresse.b} aller={aller} />
       ) : choisie ? (
         <main>
@@ -90,7 +93,7 @@ export default function App() {
               <label>
                 <input type="checkbox" checked={adresse.secondaires}
                   onChange={(e) => aller(choisie.id, e.target.checked)} />
-                Liens secondaires (passages de militants, adhésions, filiations)
+                Liens secondaires (composantes, filiations)
               </label>
               <label>
                 Générations
@@ -124,6 +127,150 @@ export default function App() {
         <a href={DEPOT}>Méthode, code et données</a>.
       </footer>
     </div>
+  );
+}
+
+// Scénario « Entrisme » : pour chaque organisation entriste, vers quels partis et à quels moments
+// (data/manuel/entrisme.csv validé à la main, scripts/export.py). Un soutien sans entrisme (Révolution et La
+// France insoumise depuis 2016) est dessiné avec un contour en tirets.
+function Entrisme({ index, donnees, aller }) {
+  const conteneur = useRef(null);
+  const [largeur, setLargeur] = useState(1000);
+  useEffect(() => {
+    const c = conteneur.current;
+    if (!c || typeof ResizeObserver === "undefined") return undefined;
+    const obs = new ResizeObserver(() => setLargeur(c.clientWidth));
+    obs.observe(c);
+    return () => obs.disconnect();
+  }, []);
+  const cas = donnees.entrismes || [];
+  const groupes = [];
+  for (const e of cas) {
+    let g = groupes.find((x) => x.id === e.entriste);
+    if (!g) {
+      g = { id: e.entriste, o: index.orgs.get(e.entriste), cas: [] };
+      groupes.push(g);
+    }
+    g.cas.push(e);
+  }
+  groupes.sort((a, b) => a.o.debut - b.o.debut);
+  const fin = (o) => (o.fin != null ? o.fin : index.aujourdhui);
+  const t0 = Math.floor(Math.min(...groupes.map((g) => g.o.debut)) / 10) * 10;
+  const t1 = Math.ceil(index.aujourdhui);
+  const G = 170; // colonne des noms
+  const X = (t) => G + ((t - t0) / (t1 - t0)) * (largeur - G - 30);
+  const H_ORG = 14;
+  const H_CAS = 22;
+  let y = 34;
+  const rangs = groupes.map((g) => {
+    const dates = g.cas.filter((e) => e.debut != null);
+    const sans = g.cas.filter((e) => e.debut == null);
+    const r = { g, y, dates, sans };
+    y += H_ORG + 8 + (dates.length + sans.length) * H_CAS + 18;
+    return r;
+  });
+  const hauteur = y;
+  const annees = [];
+  for (let a = t0; a <= t1; a += 10) annees.push(a);
+  const [survol, setSurvol] = useState(null);
+  const verbe = (e) => (e.nature === "soutien" ? "soutien à" : "dans");
+  const court = (q) => index.orgs.get(q).sigle.replace(/ \(\d{4}\)$/, ""); // « PCF (1920) (1930) » : une seule date
+  const periode = (e) => (e.debut == null ? "date inconnue"
+    : e.fin != null ? `${e.debut}–${e.fin}` : e.nature === "soutien" ? `depuis ${e.debut}` : `${e.debut}`);
+  return (
+    <main className="vue-entrisme">
+      <section className="frise">
+        <h1 className="titre-vue">L'entrisme</h1>
+        <p className="resume">
+          Des militants d'une organisation entrent, de façon concertée, dans une autre pour en infléchir l'orientation.
+          Chaque ligne montre vers quel parti, à quel moment ; un contour en tirets marque un soutien sans entrisme.
+          Survolez un segment pour sa citation, cliquez pour la fiche.
+        </p>
+        <div className="cadre-frise">
+          <div className="defilement entrisme" ref={conteneur} onMouseLeave={() => setSurvol(null)}>
+            <svg width={largeur} height={hauteur} role="img" aria-label="Entrisme, par organisation et dans le temps">
+              {annees.map((a) => (
+                <g key={a}>
+                  <line x1={X(a)} x2={X(a)} y1={24} y2={hauteur} className="graduation" />
+                  <text x={X(a)} y={16} className="annee">{a}</text>
+                </g>
+              ))}
+              {rangs.map(({ g, y: yg, dates, sans }) => (
+                <g key={g.id}>
+                  <text x={8} y={yg + 11} className="nom-entriste" onClick={() => aller(g.id)}>{g.o.sigle}</text>
+                  <rect x={X(g.o.debut)} y={yg} width={Math.max(3, X(fin(g.o)) - X(g.o.debut))} height={H_ORG} rx="3"
+                    fill={g.o.couleur} className="org-entriste" onClick={() => aller(g.id)}>
+                    <title>{`${g.o.nom} (${g.o.an_debut}–${g.o.actif ? "" : g.o.an_fin || "?"})`}</title>
+                  </rect>
+                  {dates.map((e, i) => {
+                    const h = index.orgs.get(e.hote);
+                    const xa = X(e.debut);
+                    const xb = X(e.fin != null ? e.fin : e.nature === "soutien" ? index.aujourdhui : e.debut + 1);
+                    const yc = yg + H_ORG + 8 + i * H_CAS;
+                    const texte = `${verbe(e)} ${court(e.hote)} (${periode(e)})`;
+                    // l'étiquette à droite du segment, ou à gauche s'il n'y a plus la place
+                    const aGauche = Math.max(xa, xb) + 6 + texte.length * 6.6 > largeur - 4;
+                    return (
+                      <g key={i} className="cas-entrisme" onClick={() => aller(e.hote)}
+                        onMouseMove={(ev) => {
+                          const c = conteneur.current.getBoundingClientRect();
+                          setSurvol({ e, x: ev.clientX - c.left, y: ev.clientY - c.top, w: c.width });
+                        }}>
+                        <line x1={xa} x2={xa} y1={yg + H_ORG} y2={yc + 7} stroke={g.o.couleur} strokeWidth="1.5" />
+                        <rect x={xa} y={yc} width={Math.max(6, xb - xa)} height={14} rx="3" fill={h.couleur}
+                          fillOpacity={e.nature === "soutien" ? 0.35 : 1} stroke={e.nature === "soutien" ? h.couleur : "none"}
+                          strokeWidth="1.5" strokeDasharray={e.nature === "soutien" ? "4 2" : undefined} />
+                        <text x={aGauche ? xa - 6 : Math.max(xa, xb) + 6} y={yc + 11} className="etiquette-cas"
+                          textAnchor={aGauche ? "end" : "start"}>{texte}</text>
+                      </g>
+                    );
+                  })}
+                  {sans.map((e, i) => (
+                    <text key={`s${i}`} x={X(g.o.debut)} y={yg + H_ORG + 8 + (dates.length + i) * H_CAS + 11}
+                      className="etiquette-cas sans-date" onClick={() => aller(e.hote)}>
+                      {`${verbe(e)} ${court(e.hote)} (date inconnue)`}
+                      <title>{e.citation}</title>
+                    </text>
+                  ))}
+                </g>
+              ))}
+            </svg>
+          </div>
+          {survol && (
+            <div className="survol" style={{ left: Math.max(4, survol.x + 300 > survol.w ? survol.x - 300 : survol.x + 16), top: survol.y + 18 }}>
+              <strong>
+                {index.orgs.get(survol.e.entriste).sigle} {verbe(survol.e)} {index.orgs.get(survol.e.hote).sigle}
+              </strong>
+              <span className="survol-dates">{periode(survol.e)}</span>
+              <q>{survol.e.citation}</q>
+              <span className="survol-source">{survol.e.source}</span>
+            </div>
+          )}
+        </div>
+      </section>
+      <aside className="fiche">
+        <h1>Les cas documentés</h1>
+        <ol className="sources">
+          {rangs.flatMap(({ g }) => g.cas).map((e, i) => {
+            const o = index.orgs.get(e.entriste);
+            const h = index.orgs.get(e.hote);
+            return (
+              <li key={i}>
+                <button className="lien-org" onClick={() => aller(o.id)} title={o.nom}>{o.sigle}</button>{" "}
+                {verbe(e)}{" "}
+                <button className="lien-org" onClick={() => aller(h.id)} title={h.nom}>{h.sigle}</button>{" "}
+                ({periode(e)}) : <q>{e.citation}</q>{" "}
+                {e.url ? <a href={e.url} target="_blank" rel="noopener">{e.source}</a> : <span>{e.source}</span>}
+              </li>
+            );
+          })}
+        </ol>
+        <p className="signaler">
+          Chaque cas a été validé à la main ; les sources le disent rarement de façon explicite. Un cas manque ou est
+          faux ? <a href={SIGNALER} target="_blank" rel="noopener">Signalez-le</a>, avec sa source.
+        </p>
+      </aside>
+    </main>
   );
 }
 
@@ -173,6 +320,16 @@ function Accueil({ index, donnees, aller, inconnue }) {
           ))}
         </ul>
       </section>
+
+      {donnees.entrismes?.length > 0 && (
+        <section>
+          <h2>L'entrisme</h2>
+          <p>
+            Des militants d'une organisation qui entrent, de façon concertée, dans une autre : vers quels partis, à quels
+            moments. <a href="#entrisme">Voir les {donnees.entrismes.length} cas documentés →</a>
+          </p>
+        </section>
+      )}
 
       <section>
         <h2>Comparer deux organisations</h2>
@@ -298,8 +455,8 @@ function Comparaison({ index, donnees, a, b, aller }) {
           </>
         )}
         <p className="signaler">
-          L'entrisme n'est compté que s'il a été validé à la main : les sources le disent rarement de façon
-          explicite.
+          Les passages de militants et l'entrisme ne sont pas comptés : voir le scénario{" "}
+          <a href="#entrisme">Entrisme</a>.
         </p>
       </aside>
     </main>

@@ -53,7 +53,7 @@ Barlow Condensed, IBM Plex Mono), téléchargées depuis le dépôt github.com/g
 | 3 | `scripts/enrichissement.py` | Textes Wikipédia, pages liées, Wikidata | `data/manuel/actifs.csv`, `data/sortie/liens_candidats.csv`, `liste_recherche.csv` |
 | 3b | `scripts/tableaux.py` | Tableaux des membres des Internationales (articles en et fr) | `data/sortie/affiliations_tableaux.csv` : années d'adhésion des organisations françaises, avec la ligne du tableau en citation |
 | 3c | `scripts/medias.py` | Wikidata (organe, éditeur, propriétaire…), infobox (journaux, presse, organe…), pages liées aux organisations dessinées | `data/sortie/medias.csv` : journaux, revues, télévisions, émissions, médias en ligne, radios, avec leur preuve ; `data/manuel/medias.csv` : médias « proches » à décider (`decision = oui`) |
-| 3e | `scripts/entrisme.py` | Textes en cache des organisations, articles « Entrisme », « Trotskisme en France », « Courant lambertiste » | `data/manuel/entrisme.csv` : candidats à l'entrisme (phrase citée, sens deviné ou à préciser), à valider (`decision = oui`) ; les lignes validées deviennent des liens « entrisme » dans l'application |
+| 3e | `scripts/entrisme.py` | Textes en cache des organisations, articles « Entrisme », « Trotskisme en France », « Courant lambertiste » | `data/manuel/entrisme.csv` : candidats à l'entrisme (phrase citée, sens deviné ou à préciser), à valider (`decision = oui`) ; les lignes validées alimentent le scénario « Entrisme » de l'application et les fiches |
 | 4 | `scripts/nettoyage.py` | Sources + fichiers de `data/manuel/` + caches | `data/sortie/*.csv` (dont `elagues.csv`), `criteres.md`, `resume.md`, `data/manuel/types.csv` |
 | 5 | `scripts/rendu.py` | Sortie de `nettoyage.py` | `arbre.svg` (racine), et dans `arbres/` : `arbre.svg`, `arbre.html`, `arbre_<famille>.svg`, `arbre_apercu.svg`, `vue_internationales.svg/.html` |
 | 6 | `scripts/verifier.py` | Les SVG produits et les CSV | rapport complet (R1 à R8, croisements, étiquettes en double, citations introuvables…) ; échoue si un compteur n'est pas à zéro |
@@ -92,7 +92,9 @@ La généalogie suit le temps : on ne remonte que par des événements antérieu
 Accueil de l'application : des parcours guidés (une organisation et ses réglages), la comparaison de deux
 organisations (`app/#comparer/Q…/Q…` : leurs ancêtres communs les plus proches et les chemins qui y mènent,
 d'abord par la lignée principale, puis en comptant les absorptions, puis les passages de militants, les
-composantes et l'entrisme validé), et les organisations actives par famille.
+composantes et l'entrisme validé), et les organisations actives par famille. Les passages de militants et l'entrisme ne sont jamais dessinés dans
+les frises : l'entrisme a son propre scénario (`app/#entrisme`), vers quels partis et à quels moments, à partir
+des lignes validées de `data/manuel/entrisme.csv` (colonnes `annee`, `fin`, `nature` : entrisme ou soutien).
 
 Node.js (portable, `%LOCALAPPDATA%\Programs
 odejs`) : `cd app`, `npm install` une fois, puis `npm run dev`

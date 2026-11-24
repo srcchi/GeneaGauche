@@ -91,3 +91,17 @@ test("comparer la SFIO et le PS : l'un descend de l'autre", () => {
   const c = comparer(index, id("SFIO"), id("PS"));
   assert.deepEqual(c.communs, [id("SFIO")]);
 });
+
+test("ni passages de militants ni entrisme dans les frises, même avec les liens secondaires", () => {
+  for (const q of [id("SFIO"), id("PS"), id("LCR (1974)")]) {
+    const g = genealogie(index, q, { secondaires: true });
+    assert.ok(!g.liens.some((l) => l.rel === "passage" || l.rel === "entrisme"), q);
+  }
+});
+
+test("entrisme : Révolution dans le PCF (2001-2016), puis soutien à LFI", () => {
+  const rev = donnees.organisations.find((o) => o.nom === "Révolution").id;
+  const cas = donnees.entrismes.filter((e) => e.entriste === rev);
+  assert.ok(cas.some((e) => e.hote === id("PCF (1920)") && e.nature === "entrisme" && e.debut === 2001 && e.fin === 2016));
+  assert.ok(cas.some((e) => e.hote === id("LFI") && e.nature === "soutien"));
+});
