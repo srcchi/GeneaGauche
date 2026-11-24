@@ -224,3 +224,6 @@ __marimo__/
 
 # Configuration fontconfig de l affiche : chemin absolu propre à chaque PC, régénérée à chaque exécution
 data/sortie/fonts_affiche.conf
+
+# Pages HTML de sites tiers (scripts/sites.py) : gardées en local seulement, jamais publiées
+data/sortie/cache_sites.json
