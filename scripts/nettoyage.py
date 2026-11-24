@@ -14,6 +14,7 @@ Usage : python nettoyage.py
 """
 
 import csv
+import datetime
 import json
 import os
 import re
@@ -641,6 +642,33 @@ def main():
         d["internationale_forcee"] = f"{r.get('source', '')} : « {r.get('citation', '')} »"
         stats["internationales_citees"] += 1
 
+    # Dates validées à la main (24 novembre 2026) : années de fondation lues dans le texte des articles
+    # (fondations_texte.py, data/manuel/fondations_a_valider.csv) ou sur les sites officiels (sites.py,
+    # data/manuel/sites_a_valider.csv) ; decision = oui. Une dernière activité ancienne sur un site devient une
+    # date de fin approchée ; une activité de l'année ou de l'année précédente rend l'organisation active (plus bas).
+    stats["dates_validees"] = 0
+    for nom, info, src in (("fondations_a_valider.csv", None, "texte validé"), ("sites_a_valider.csv", "fondation",
+                                                                                 "site officiel")):
+        for r in lire(os.path.join("manuel", nom)):
+            d = noeuds.get(r.get("id", ""))
+            if d is None or r.get("decision", "").strip().lower() != "oui" or (info and r.get("information") != info):
+                continue
+            if annee(r.get("annee") or r.get("valeur")):
+                # comble un manque seulement : si une source indépendante date déjà l'organisation, elle reste
+                # première et l'année validée est notée dans fondation_autres_sources (LFRS : Wikidata 2021, site 2016)
+                pos = len(d["dates_f"]) if d["dates_f"] else 0
+                d["dates_f"].insert(pos, (annee(r.get("annee") or r.get("valeur")), src))
+                stats["dates_validees"] += 1
+    annee_courante = datetime.date.today().year
+    for r in lire(os.path.join("manuel", "sites_a_valider.csv")):
+        d = noeuds.get(r.get("id", ""))
+        if d is None or r.get("decision", "").strip().lower() != "oui" or r.get("information") != "derniere_activite":
+            continue
+        an_act = annee((r.get("valeur") or "")[:4])
+        if an_act and an_act < annee_courante - 1:
+            d["dates_d"].insert(0, (an_act, "site officiel : dernière activité"))
+            stats["dates_validees"] += 1
+
     # Dates retenues : la première source (correction > Wikidata > Wikipédia), les autres notées
     for q, d in noeuds.items():
         for cle, liste, champs in (("fondation", d["dates_f"], ("fondation", "création",
@@ -994,6 +1022,10 @@ def main():
     fins_texte = []
     actifs_valides = {r["id"] for r in lire(os.path.join("manuel", "actifs.csv"))
                       if r.get("valide", "").strip().lower() == "oui"}
+    # site officiel encore actif (sites_a_valider.csv, dernière activité de l'année ou de la précédente, validée)
+    actifs_valides |= {r["id"] for r in lire(os.path.join("manuel", "sites_a_valider.csv"))
+                       if r.get("decision", "").strip().lower() == "oui" and r.get("information") == "derniere_activite"
+                       and (annee((r.get("valeur") or "")[:4]) or 0) >= datetime.date.today().year - 1}
     sigles_saisis = {r["id"]: r["sigle"].strip() for r in lire(os.path.join("manuel", "sigles.csv")) if r["sigle"].strip()}
     for q, d in noeuds.items():
         if classe.get(q) != "graphe" or d["dissolution"] or not d["fondation"]:
@@ -1250,6 +1282,11 @@ def main():
     saisie_actifs = {r["id"]: r for r in lire(os.path.join("manuel", "actifs.csv"))}
     valides = {q for q, r in saisie_actifs.items() if r.get("valide", "").strip().lower() == "oui"}
     refuses = {q for q, r in saisie_actifs.items() if r.get("valide", "").strip().lower() == "non"}
+    # Site officiel encore actif (sites_a_valider.csv : dernière activité de l'année ou de la précédente,
+    # validée), sauf refus explicite dans actifs.csv
+    valides |= {r["id"] for r in lire(os.path.join("manuel", "sites_a_valider.csv"))
+                if r.get("decision", "").strip().lower() == "oui" and r.get("information") == "derniere_activite"
+                and (annee((r.get("valeur") or "")[:4]) or 0) >= datetime.date.today().year - 1} - refuses
     provisoire = not valides
     stats["actifs_valides"], stats["actifs_refuses"] = len(valides), len(refuses)
     for q, d in noeuds.items():
